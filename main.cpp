@@ -465,6 +465,7 @@ int main() {
     int noduri, muchii, extremitateInitiala, extremitateFinala, nodStart;
 
     in >> noduri >> muchii;
+
     vector<vector<int>> listaMuchii;
 
     /* pentru BFS -> citim si nodul de start */
