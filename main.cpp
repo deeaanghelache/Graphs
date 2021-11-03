@@ -31,6 +31,12 @@ class Graf{
     vector<int> elemPeStiva; // are valoare true daca elementul este in stiva si false altfel
     vector<vector<int>> listaComponenteTareConexe;
 
+    //vectori pentru Muchii Critice
+    vector<int> adancimeParcurgere;
+    vector<int> adancimeMinimaParcurgere;
+    vector<vector<int>> muchiiCritice;
+    vector<int> parinti;
+
 public:
     //functii pentru crearea listelor de adiacenta, in functie de tipul grafului (Orientat/Neorientat)
     void construiesteGrafOrientat(int start, int final);
@@ -50,6 +56,8 @@ public:
     void componenteBiconexeDfs(int nodCurent, int adancime, stack<int>& mystack);
     void initializareCompTareConexe(ostream &out);
     void componenteTareConexe(int nodCurent, int &pozitie, stack<int>& mystack);
+    void gasireMuchiiCritice(int nodCurent, int &adancime);
+    vector<vector<int>> criticalConnections(int n, vector<vector<int>>& connections);
 };
 
 Graf::Graf(int noduri, int muchii) : noduri(noduri), muchii(muchii) {}
@@ -332,6 +340,7 @@ void Graf::componenteTareConexe(int nodCurent, int &pozitie, stack<int> &mystack
             pozitiiMinimeParcurgere[nodCurent] = min(pozitiiMinimeParcurgere[nodCurent], pozitiiMinimeParcurgere[vecin]);
         }
         else{
+            //a fost vizitat, dar nu e pe stiva -> e in alta componenta tare conexa pe care deja am gasit-o
             if(elemPeStiva[vecin])
             //vecinul curent a fost vizitat
                 pozitiiMinimeParcurgere[nodCurent] = min(pozitiiMinimeParcurgere[nodCurent], pozitiiParcurgere[vecin]);
@@ -363,6 +372,70 @@ void Graf::componenteTareConexe(int nodCurent, int &pozitie, stack<int> &mystack
     }
 }
 
+void Graf::gasireMuchiiCritice(int nodCurent, int &adancime){
+    adancimeMinimaParcurgere[nodCurent] = adancime;
+    adancimeParcurgere[nodCurent] = adancime;
+
+    for(auto vecin : listaAdiacenta[nodCurent]){
+        if(vecin == parinti[nodCurent])
+            continue;
+        if (adancimeParcurgere[vecin] != -1){
+           // if(parinti[nodCurent] != vecin) {
+                //vecinul a fost vizitat si nu e parintele lui
+                //nu avem muchie de la copil la parinte intr-un graf neorientat, deci nu actualizam oricum adancimea minima a copilului, ci numai daca vecinul vizitat nu este si parintele lui!
+                //ne ducem in jos in arbore pe copil, dar de la copil nu ne intoarcem la parinte (graf neorientat)
+                adancimeMinimaParcurgere[nodCurent] = min(adancimeMinimaParcurgere[nodCurent],
+                                                          adancimeParcurgere[vecin]);
+            }
+       // }
+        else{
+            //vecinul nu a fost vizitat
+            adancime += 1;
+            parinti[vecin] = nodCurent;
+            gasireMuchiiCritice(vecin, adancime);
+
+            adancimeMinimaParcurgere[nodCurent] = min(adancimeMinimaParcurgere[nodCurent], adancimeMinimaParcurgere[vecin]);
+
+            if (adancimeMinimaParcurgere[vecin] > adancimeParcurgere[nodCurent]) {
+                muchiiCritice.push_back({nodCurent, vecin});
+            }
+        }
+    }
+}
+
+vector<vector<int>> Graf::criticalConnections(int n, vector<vector<int>>& connections) {
+    for(int i = 0; i < connections.size(); i++){
+        listaAdiacenta[connections[i][1]].push_back(connections[i][0]);
+        listaAdiacenta[connections[i][0]].push_back(connections[i][1]);
+    }
+
+    adancimeParcurgere.resize(maxim);
+    adancimeMinimaParcurgere.resize(maxim);
+    parinti.resize(maxim);
+
+    std::fill(std::begin(adancimeParcurgere), std::begin(adancimeParcurgere)+maxim, -1);
+    std::fill(std::begin(adancimeMinimaParcurgere), std::begin(adancimeMinimaParcurgere)+maxim, -1);
+    std::fill(std::begin(parinti), std::begin(parinti)+maxim, 0);
+
+//         for(int i = 1; i <= n; i++){
+//             if (pozitiiParcurgere[i] == -1){
+
+//             }
+//         }
+
+    int radacina = 0, adancimeRadacina = 0;
+    gasireMuchiiCritice(radacina, adancimeRadacina);
+
+    return muchiiCritice;
+
+    // cout << "[";
+    // // for(auto i = muchiiCritice.begin(); i != muchiiCritice.end(); i++)
+    // for(int i = 0; i < muchiiCritice.size(); i++)
+    //     cout << "[" << muchiiCritice[i].first << "," << muchiiCritice[i].second << "]";
+    // cout << "]";
+}
+
+
 int main() {
 
 //    ifstream in("bfs.in");
@@ -383,12 +456,16 @@ int main() {
 //    ifstream in("biconex.in");
 //    ofstream out("biconex.out");
 
-    ifstream in("ctc.in");
-    ofstream out("ctc.out");
+//    ifstream in("ctc.in");
+//    ofstream out("ctc.out");
+
+    ifstream in("criticalConnections.in");
+    ofstream out("criticalConnections.out");
 
     int noduri, muchii, extremitateInitiala, extremitateFinala, nodStart;
 
     in >> noduri >> muchii;
+    vector<vector<int>> listaMuchii;
 
     /* pentru BFS -> citim si nodul de start */
 //    in >> noduri >> muchii >> nodStart;
@@ -415,7 +492,10 @@ int main() {
         //mygraf.construiesteGrafNeorientat(extremitateInitiala, extremitateFinala);
 
         /* citire Componente Tare Conexe -> pentru graf orientat */
-        mygraf.construiesteGrafOrientat(extremitateInitiala, extremitateFinala);
+        //mygraf.construiesteGrafOrientat(extremitateInitiala, extremitateFinala);
+
+        /* citire Muchii Critice -> pentru graf neorientat */
+        listaMuchii.push_back({extremitateInitiala, extremitateFinala});
     }
 
     /* citire Havel-Hakimi */
@@ -456,7 +536,14 @@ int main() {
 //    mygraf.initializareCompBiconexe(out);
 
     /* apel Componente Tare Conexe */
-    mygraf.initializareCompTareConexe(out);
+//    mygraf.initializareCompTareConexe(out);
+
+    /* apel Muchii Critice */
+    vector<vector<int>> muchiiCritice = mygraf.criticalConnections(noduri, listaMuchii);
+
+    for(auto muchie : muchiiCritice){
+        out << muchie[0] << " " << muchie[1] << "\n";
+    }
 
     in.close();
     out.close();
