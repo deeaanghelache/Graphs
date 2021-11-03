@@ -527,6 +527,7 @@ int main() {
 
     /* apel DFS */
 //    std::fill(std::begin(vizitate), std::begin(vizitate)+maxim, false);
+    //apelam functia numaraConexe()
     //out << mygraf.numaraConexe();
 
     /* apel Sortare Topologica */
