@@ -11,6 +11,7 @@ using namespace std;
 
 const int maxim = 100001;
 const int infinit = std::numeric_limits<int>::max();
+const int maximDisjoint = 100001;
 
 class Graf{
     int noduri, muchii;
@@ -47,11 +48,22 @@ class Graf{
     // min-heap
     priority_queue<pair<int, int>, std::vector<pair<int, int>>, std::greater<>> minHeap;
 
+    // coada
+    queue<int> myqueue;
+
+    // vectori pentru Prim
+    vector<pair<int, int>> muchiiApm;
+    vector<int> vectorTati;
+
+    // vectori pentru Bellman-Ford
+    vector<int> elemInCoada;
+    vector<int> numarParcurgeri;
+
 public:
     //functii pentru crearea listelor de adiacenta, in functie de tipul grafului (Orientat/Neorientat)
-    void construiesteGrafOrientat(int start, int final);
-    void construiesteGrafNeorientat(int start, int final);
-    void construiesteGradeInterioare(int start, int final);
+    void construiesteGrafOrientat(const int &start, const int &final);
+    void construiesteGrafNeorientat(const int &start, const int &final);
+    void construiesteGradeInterioare(const int &start, const int &final);
     void construiesteCuCosturiOrientate(const int &start, const int &final, const int &cost);
     void construiesteCuCosturiNeorientate(const int &start, const int &final, const int &cost);
 
@@ -73,21 +85,41 @@ public:
     void afisareDistante(std::ostream &out);
     void Dijkstra(ostream &out);
     void initializareDijkstra();
+    void ApmPrim(ofstream &out);
+    void initializarePrim();
+    void afisarePrim(int cost, ostream &out);
+    void BellmanFord(ofstream &out);
+    void initializareBellManFord();
+};
 
+
+/* clasa pentru paduri de multimi disjuncte */
+
+class Disjoint{
+    int numarMultimi, numarOperatii;
+    vector<int> vectorTata;
+    vector<int> inaltimeArbore;
+
+public:
+    void citireDisjoint(const int &multimi, const int &operatii, istream &in, ostream &out);
+    Disjoint(int numarMultimi, int numarOperatii);
+    void initializare();
+    int reprezentant(int nod);
+    void reuneste(int nod1, int nod2);
 };
 
 Graf::Graf(int noduri, int muchii) : noduri(noduri), muchii(muchii) {}
 
-void Graf::construiesteGrafNeorientat(int start, int final) {
+void Graf::construiesteGrafNeorientat(const int &start, const int &final) {
     listaAdiacenta[start].push_back(final);
     listaAdiacenta[final].push_back(start);
 }
 
-void Graf::construiesteGrafOrientat(int start, int final) {
+void Graf::construiesteGrafOrientat(const int &start, const int &final) {
     listaAdiacenta[start].push_back(final);
 }
 
-void Graf::construiesteGradeInterioare(int start, int final) {
+void Graf::construiesteGradeInterioare(const int &start, const int &final) {
     listaAdiacenta[start].push_back(final);
     gradeInterioare[final]++;
 }
@@ -529,6 +561,218 @@ void Graf::initializareDijkstra(){
     minHeap.push({distante[1], 1});
 }
 
+/* APM */
+
+void Graf::ApmPrim(ofstream &out) {
+    initializarePrim();
+
+    int costMinimApm = 0;
+
+    while (!minHeap.empty()){
+        //minimul din heap e in top
+        pair<int, int> elementSiDistantaMin = minHeap.top();
+
+        //dam pop pe priority queue imediat cum salvam top-ul
+        minHeap.pop();
+
+        //daca nodul curent (din top) a fost vizitat, trecem peste el (nu vrem sa mai actualizam costul minim
+        //al apm-ului)
+        if(vizitate[elementSiDistantaMin.second]){
+            continue;
+        }
+
+        costMinimApm += elementSiDistantaMin.first;
+
+        // vizitam un nod doar cand el ajunge in top-ul heap-ului
+        vizitate[elementSiDistantaMin.second] = true;
+        // pair.first -> distanta
+        // pair.second -> nodul
+
+        for( auto vecinSiCost : listaAdiacentaCuCosturi[elementSiDistantaMin.second]){
+            // listaAdiacenta.first -> vecinul
+            // listaAdiacenta.second -> costul muchiei nodCurent - vecin
+
+            if(!vizitate[vecinSiCost.first]){
+
+                if (vecinSiCost.second < distante[vecinSiCost.first]){
+                    distante[vecinSiCost.first] = vecinSiCost.second;
+
+                    // pe prima pozitie din pair am distanta!!!
+                    minHeap.push({distante[vecinSiCost.first], vecinSiCost.first});
+
+                    // retinem si tatal vecinului -> pentru a reconstrui solutia
+                    // (in final, muchiile din arbore vor fi de forma [nod, tata[nod])
+                    vectorTati[vecinSiCost.first] = elementSiDistantaMin.second;
+                }
+            }
+        }
+    }
+
+    for(int i = 2; i <= noduri; i++)
+        // singurul nod care trebuie sa aiba tatal 0 e radacina (nodul 1)
+        if(vectorTati[i] != 0){
+            muchiiApm.emplace_back(i, vectorTati[i]);
+        }
+
+    afisarePrim(costMinimApm, out);
+
+}
+
+void Graf::initializarePrim() {
+    distante.resize(maxim);
+    vizitate.resize(maxim);
+    vectorTati.resize(maxim);
+
+    fill(std::begin(distante), std::begin(distante)+maxim, infinit);
+    fill(std::begin(vizitate), std::begin(vizitate)+maxim, false);
+    fill(std::begin(vectorTati), std::begin(vectorTati)+maxim, 0);
+
+    distante[1] = 0;
+
+    //punem nodul de start in heap
+    minHeap.push({distante[1], 1});
+}
+
+void Graf::afisarePrim(int cost, ostream &out) {
+    out << cost << "\n";
+
+    out << muchiiApm.size() << "\n";
+
+    for(auto pereche : muchiiApm){
+        out << pereche.first << " " << pereche.second << "\n";
+    }
+}
+
+
+/* Algoritm Bellman-Ford */
+
+void Graf::BellmanFord(ofstream &out) {
+    initializareBellManFord();
+
+    while(!myqueue.empty()) {
+        int nodCurent = myqueue.front();
+
+        // daca numarul parcurgerilor nodului curent este mai mare egal decat numarul nodurilor,
+        // atunci avem un ciclu negativ -> inca se fac actualizari la pasul n
+        if(numarParcurgeri[nodCurent] >= noduri){
+            out << "Ciclu negativ!";
+            return;
+        }
+
+        myqueue.pop();
+
+        numarParcurgeri[nodCurent]++;
+        elemInCoada[nodCurent] = false;
+
+        for (auto vecinSiCost: listaAdiacentaCuCosturi[nodCurent]) {
+            int vecin = vecinSiCost.first;
+            int cost = vecinSiCost.second;
+
+            if (distante[nodCurent] + cost < distante[vecin]) {
+                distante[vecin] = distante[nodCurent] + cost;
+
+                //le punem in coada doar pe cele actualizate
+                if(!elemInCoada[vecin]) {
+                    myqueue.push(vecin);
+                    elemInCoada[vecin] = true;
+                }
+            }
+        }
+    }
+
+    for(int i = 2; i <= noduri; i++){
+        if(distante[i] != infinit)
+            out << distante[i] << " ";
+        else{
+            out << 0 << " ";
+        }
+    }
+
+}
+
+void Graf::initializareBellManFord() {
+    distante.resize(maxim);
+    elemInCoada.resize(maxim);
+    numarParcurgeri.resize(maxim);
+
+    fill(std::begin(distante), std::begin(distante)+maxim, infinit);
+    fill(std::begin(elemInCoada), std::begin(elemInCoada)+maxim, false);
+    fill(std::begin(numarParcurgeri), std::begin(numarParcurgeri)+maxim,0);
+
+    distante[1] = 0;
+    elemInCoada[1] = true;
+
+    myqueue.push(1);
+}
+
+/* Paduri de multimi disjuncte */
+
+
+void Disjoint::citireDisjoint(const int &multimi, const int &operatii, istream &in, ostream &out) {
+    int operatie, x, y;
+
+    for(int i = 0; i < operatii; i++){
+        in >> operatie >> x >> y;
+
+        if (operatie == 1){
+            // operatia de tip 1 -> reunim elementele x si y
+
+            reuneste(x, y);
+
+        }
+
+        else {
+            // operatia de tip 2 -> spunem daca elementele x si y se afla in aceeasi multime
+            if(reprezentant(x) == reprezentant(y)){
+                out << "DA" << "\n";
+            }
+            else{
+                out << "NU" << "\n";
+            }
+        }
+    }
+}
+
+Disjoint::Disjoint(int numarMultimi, int numarOperatii) : numarOperatii(numarOperatii), numarMultimi(numarMultimi) {}
+
+void Disjoint::initializare() {
+    vectorTata.resize(maximDisjoint);
+    inaltimeArbore.resize(maximDisjoint);
+
+    fill(std::begin(vectorTata), std::begin(vectorTata)+maximDisjoint, 0);
+    fill(std::begin(inaltimeArbore), std::begin(inaltimeArbore)+maximDisjoint, 0);
+}
+
+int Disjoint::reprezentant(int nod) {
+    //daca am ajuns in radacina arborelui, o returnam
+    if(vectorTata[nod] == 0){
+        return nod;
+    }
+
+    //daca nu, apelam recursiv functia pana cand tatal nodului curent "va deveni" radacina arborelui
+    vectorTata[nod] = reprezentant(vectorTata[nod]);
+    return vectorTata[nod];
+}
+
+void Disjoint::reuneste(int nod1, int nod2) {
+    int reprezentantNod1 = reprezentant(nod1);
+    int reprezentantNod2 = reprezentant(nod2);
+
+    if (inaltimeArbore[reprezentantNod1] > inaltimeArbore[reprezentantNod2]){
+        // il facem pe reprezentantul nodului 2 copilul reprezentantului nodului 1
+        vectorTata[reprezentantNod2] = reprezentantNod1;
+    }
+    else{
+        // il facem pe reprezentantul nodului 1 copilul reprezentantului nodului 2
+        vectorTata[reprezentantNod1] = reprezentantNod2;
+
+        // daca inaltimile sunt egale -> crestem inaltimea cu 1
+        if (inaltimeArbore[reprezentantNod1] == inaltimeArbore[reprezentantNod2]){
+            inaltimeArbore[reprezentantNod2]++;
+        }
+    }
+}
+
 
 int main() {
 
@@ -556,14 +800,14 @@ int main() {
 //    ifstream in("criticalConnections.in");
 //    ofstream out("criticalConnections.out");
 
-    ifstream in("dijkstra.in");
-    ofstream out("dijkstra.out");
+//    ifstream in("dijkstra.in");
+//    ofstream out("dijkstra.out");
 
 //    ifstream in("apm.in");
 //    ofstream out("apm.out");
 
-//    ifstream in("bellmanford.in");
-//    ofstream out("bellmanford.out");
+    ifstream in("bellmanford.in");
+    ofstream out("bellmanford.out");
 
 //    ifstream in("disjoint.in");
 //    ofstream out("disjoint.out");
@@ -611,10 +855,10 @@ int main() {
 //        mygraf.construiesteCuCosturiOrientate(extremitateInitiala, extremitateFinala, costMuchie);
 
         /* citire Bellman-Ford -> pentru graf orientat ponderat */
-//        int costMuchie;
-//        in >> costMuchie;
-//
-//        mygraf.construiesteCuCosturiOrientate(extremitateInitiala, extremitateFinala, costMuchie);
+        int costMuchie;
+        in >> costMuchie;
+
+        mygraf.construiesteCuCosturiOrientate(extremitateInitiala, extremitateFinala, costMuchie);
 
         /* citire APM -> pentru graf neorientat ponderat */
 //        int costMuchie;
@@ -671,6 +915,27 @@ int main() {
 
     /* apel Dijkstra */
 //    mygraf.Dijkstra(out);
+
+    /* apel Apm */
+//    mygraf.ApmPrim(out);
+
+    /* apel Bellman-Ford */
+    mygraf.BellmanFord(out);
+
+    /* apel Paduri de multimi disjuncte */
+
+//    // n -> numarul de multimi
+//    // m -> numarul de operatii
+//
+//    int numarOperatii, numarMultimi;
+//    in >> numarMultimi >> numarOperatii;
+//
+//    Disjoint padureDeMultimiDisjuncte(numarMultimi, numarOperatii);
+//
+//    padureDeMultimiDisjuncte.initializare();
+//
+//    padureDeMultimiDisjuncte.citireDisjoint(numarMultimi, numarOperatii, in, out);
+
 
     in.close();
     out.close();
