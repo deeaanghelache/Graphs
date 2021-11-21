@@ -9,7 +9,7 @@
 
 using namespace std;
 
-const int maxim = 100001;
+const int maxim = 50001;
 const int infinit = std::numeric_limits<int>::max();
 const int maximDisjoint = 100001;
 
@@ -22,74 +22,37 @@ class Graf{
     //lista de adiacenta pentru graf ponderat
     vector<pair<int, int>> listaAdiacentaCuCosturi[maxim];
 
-    vector<bool> vizitate;
-    vector<int> distante;
-
-    //vector care retine gradele interioare ale nodurilor din graf
-    int gradeInterioare[maxim] = {0};
-
-    //vectori pentru Componente Biconexe
-    vector<int> adancimeNod;
-    vector<int> nivelMinimNod;
-    vector<vector<int>> componenteBiconexe;
-
-    //vectori pentru Componente Tare Conexe
-    vector<int> pozitiiParcurgere;
-    vector<int> pozitiiMinimeParcurgere;
-    vector<int> elemPeStiva; // are valoare true daca elementul este in stiva si false altfel
-    vector<vector<int>> listaComponenteTareConexe;
-
-    //vectori pentru Muchii Critice
-    vector<int> adancimeParcurgere;
-    vector<int> adancimeMinimaParcurgere;
-    vector<vector<int>> muchiiCritice;
-    vector<int> parinti;
-
-    // min-heap
-    priority_queue<pair<int, int>, std::vector<pair<int, int>>, std::greater<>> minHeap;
-
-    // coada
-    queue<int> myqueue;
-
-    // vectori pentru Prim
-    vector<pair<int, int>> muchiiApm;
-    vector<int> vectorTati;
-
-    // vectori pentru Bellman-Ford
-    vector<int> elemInCoada;
-    vector<int> numarParcurgeri;
+    void dfs(int nodCurent, vector<bool> &vizitate);
+    void componenteBiconexeDfs(int nodCurent, int adancime, stack<int>& mystack, vector<int> &adancimeNod, vector<int> &nivelMinimNod, vector<bool> &vizitate, vector<vector<int>> &componenteBiconexe);
+    void algoritmComponenteTareConexe(int nodCurent, int &pozitie, stack<int> &mystack, vector<int> &pozitiiParcurgere, vector<int> &pozitiiMinimeParcurgere, vector<bool> &elemPeStiva, vector<vector<int>> &listaComponenteTareConexe);
+    void gasireMuchiiCritice(int nodCurent, int &adancime, vector<int> &adancimeParcurgere, vector<int> &adancimeMinimaParcurgere, vector<vector<int>> &muchiiCritice, vector<int> &parinti);
 
 public:
     //functii pentru crearea listelor de adiacenta, in functie de tipul grafului (Orientat/Neorientat)
     void construiesteGrafOrientat(const int &start, const int &final);
     void construiesteGrafNeorientat(const int &start, const int &final);
-    void construiesteGradeInterioare(const int &start, const int &final);
+    void construiesteGradeInterioare(const int &start, const int &final, vector<int> &gradeInterioare);
     void construiesteCuCosturiOrientate(const int &start, const int &final, const int &cost);
     void construiesteCuCosturiNeorientate(const int &start, const int &final, const int &cost);
 
     //constructori
     Graf();
+    Graf(int noduri);
     Graf(int noduri, int muchii);
 
     //functii
     int numaraConexe();
-    void dfs(int nodCurent);
-    void bfs(int nodStart, std::ostream &out);
-    void sortareTopologica(std::ostream &out);
-    void initializareCompBiconexe(ostream &out);
-    void componenteBiconexeDfs(int nodCurent, int adancime, stack<int>& mystack);
-    void initializareCompTareConexe(ostream &out);
-    void componenteTareConexe(int nodCurent, int &pozitie, stack<int>& mystack);
-    void gasireMuchiiCritice(int nodCurent, int &adancime);
+    vector<int> bfs(int nodStart);
+    vector<int> sortareTopologica(vector<int> &gradeInterioare);
+    vector<vector<int>> componenteBiconexe();
+    vector<vector<int>> componenteTareConexe();
     vector<vector<int>> criticalConnections(int n, vector<vector<int>>& connections);
-    void afisareDistante(std::ostream &out);
-    void Dijkstra(ostream &out);
-    void initializareDijkstra();
-    void ApmPrim(ofstream &out);
-    void initializarePrim();
-    void afisarePrim(int cost, ostream &out);
-    void BellmanFord(ofstream &out);
-    void initializareBellManFord();
+    void afisareDistante(vector<int> distante, std::ostream &out);
+    vector<int> Dijkstra(int nodStart = 1);
+    pair<vector<pair<int, int>>, int> ApmPrim(int nodStart = 1);
+    void BellmanFord(ofstream &out, int nodStart = 1);
+    vector<vector<int>> royFloyd(vector<vector<int>> &distante);
+    void afisareMatrice(vector<vector<int>> matrice, ofstream &out);
 };
 
 
@@ -108,6 +71,8 @@ public:
     void reuneste(int nod1, int nod2);
 };
 
+Graf::Graf(int noduri) : noduri(noduri) {}
+
 Graf::Graf(int noduri, int muchii) : noduri(noduri), muchii(muchii) {}
 
 void Graf::construiesteGrafNeorientat(const int &start, const int &final) {
@@ -119,7 +84,7 @@ void Graf::construiesteGrafOrientat(const int &start, const int &final) {
     listaAdiacenta[start].push_back(final);
 }
 
-void Graf::construiesteGradeInterioare(const int &start, const int &final) {
+void Graf::construiesteGradeInterioare(const int &start, const int &final, vector<int> &gradeInterioare) {
     listaAdiacenta[start].push_back(final);
     gradeInterioare[final]++;
 }
@@ -135,6 +100,11 @@ void Graf::construiesteCuCosturiNeorientate(const int &start, const int &final, 
 
 /* functii pentru DFS */
 int Graf::numaraConexe() {
+    vector<bool> vizitate;
+
+    vizitate.resize(maxim);
+    std::fill(std::begin(vizitate), std::begin(vizitate)+maxim, false);
+
     int componenteConexe = 0;
 
     for(int i=1; i<noduri+1; i++)
@@ -142,14 +112,14 @@ int Graf::numaraConexe() {
         if(!vizitate[i])
         {
             componenteConexe++;
-            dfs(i);
+            dfs(i, vizitate);
         }
     }
 
     return componenteConexe;
 }
 
-void Graf::dfs(int nodCurent) {
+void Graf::dfs(int nodCurent, vector<bool> &vizitate) {
     vizitate[nodCurent] = true;
 
     for(int vecin : listaAdiacenta[nodCurent])
@@ -157,18 +127,22 @@ void Graf::dfs(int nodCurent) {
         if(!vizitate[vecin])
         {
             vizitate[vecin]=true;
-            dfs(vecin);
+            dfs(vecin, vizitate);
         }
     }
 }
 
 /* functii pentru BFS */
-void Graf::afisareDistante(std::ostream &out){
+void Graf::afisareDistante(vector<int> distante, std::ostream &out){
     for(int i = 1; i <= noduri; i++)
         out<<distante[i]<<" ";
 }
 
-void Graf::bfs(int nodStart, std::ostream &out) {
+vector<int> Graf::bfs(int nodStart) {
+
+    vector<bool> vizitate;
+    vector<int> distante;
+
     distante.resize(maxim);
     vizitate.resize(maxim);
 
@@ -176,6 +150,7 @@ void Graf::bfs(int nodStart, std::ostream &out) {
     std::fill(std::begin(distante), std::begin(distante)+maxim, -1);
 
     queue<int> queueBfs;
+
     queueBfs.push(nodStart);
     vizitate[nodStart] = true;
     distante[nodStart] = 0;
@@ -195,12 +170,14 @@ void Graf::bfs(int nodStart, std::ostream &out) {
         queueBfs.pop();
     }
 
-    afisareDistante(out);
+    return distante;
 }
 
 /* Sortare topologica */
 
-void Graf::sortareTopologica(std::ostream &out) {
+vector<int> Graf::sortareTopologica(vector<int> &gradeInterioare) {
+    vector<int> noduriSortateTopologic;
+
     queue<int> myqueue;
 
     for(int i = 1; i <= noduri; i++)
@@ -221,8 +198,11 @@ void Graf::sortareTopologica(std::ostream &out) {
         }
 
         myqueue.pop();
-        out << nodCurent << " ";
+
+        noduriSortateTopologic.push_back(nodCurent);
     }
+
+    return noduriSortateTopologic;
 }
 
 /* Havel-Hakimi */
@@ -279,34 +259,31 @@ void havelHakimi(vector<int> grade, std::ostream &out){
 
 /* Componente Biconexe */
 
-void Graf::initializareCompBiconexe(ostream &out) {
+vector<vector<int>> Graf::componenteBiconexe(){
+    //vectori pentru Componente Biconexe
+    vector<int> adancimeNod;
+    vector<int> nivelMinimNod;
+    vector<bool> vizitate;
+    vector<vector<int>> componenteBiconexe;
+
+    vizitate.resize(maxim);
     adancimeNod.resize(maxim);
     nivelMinimNod.resize(maxim);
 
     std::fill(std::begin(adancimeNod), std::begin(adancimeNod)+maxim, -1);
     std::fill(std::begin(nivelMinimNod), std::begin(nivelMinimNod)+maxim, -1);
+    std::fill(std::begin(vizitate), std::begin(vizitate)+maxim, false);
 
     stack<int> mystack;
 
-//    for(int i = 0; i<adancimeNod.size(); i++)
-//        out<<adancimeNod[i]<<" ";
-
     int radacina = 1, adancimeRadacina = 1;
-    componenteBiconexeDfs(radacina, adancimeRadacina, mystack);
+    componenteBiconexeDfs(radacina, adancimeRadacina, mystack, adancimeNod, nivelMinimNod, vizitate, componenteBiconexe);
 
-    //afisarea componentelor biconexe
-    unsigned int nrComponenteBiconexe = componenteBiconexe.size();
-    out << nrComponenteBiconexe << "\n";
-
-    for(int i = 0; i < nrComponenteBiconexe; i++){
-        for(int j = 0; j < componenteBiconexe[i].size(); j++){
-            out << componenteBiconexe[i][j] << " ";
-        }
-        out << "\n";
-    }
+    return componenteBiconexe;
 }
 
-void Graf::componenteBiconexeDfs(int nodCurent, int adancime, stack<int>& mystack) {
+void Graf::componenteBiconexeDfs(int nodCurent, int adancime, stack<int>& mystack, vector<int> &adancimeNod, vector<int> &nivelMinimNod, vector<bool> &vizitate, vector<vector<int>> &componenteBiconexe) {
+
     mystack.push(nodCurent);
     vizitate[nodCurent] = true;
     nivelMinimNod[nodCurent] = adancime;
@@ -317,7 +294,7 @@ void Graf::componenteBiconexeDfs(int nodCurent, int adancime, stack<int>& mystac
             //vecinul nu a fost vizitat
 
             vizitate[vecin] = true; //il vizitam
-            componenteBiconexeDfs(vecin, adancime+1, mystack);
+            componenteBiconexeDfs(vecin, adancime+1, mystack, adancimeNod, nivelMinimNod, vizitate, componenteBiconexe);
 
             if(nivelMinimNod[vecin] >= adancimeNod[nodCurent]){
 
@@ -350,7 +327,13 @@ void Graf::componenteBiconexeDfs(int nodCurent, int adancime, stack<int>& mystac
 
 /* Componente Tare Conexe */
 
-void Graf::initializareCompTareConexe(ostream &out) {
+vector<vector<int>> Graf::componenteTareConexe() {
+    //vectori pentru Componente Tare Conexe
+    vector<int> pozitiiParcurgere;
+    vector<int> pozitiiMinimeParcurgere;
+    vector<bool> elemPeStiva; // are valoare true daca elementul este in stiva si false altfel
+    vector<vector<int>> listaComponenteTareConexe;
+
     pozitiiMinimeParcurgere.resize(maxim);
     pozitiiParcurgere.resize(maxim);
     elemPeStiva.resize(maxim);
@@ -366,28 +349,15 @@ void Graf::initializareCompTareConexe(ostream &out) {
     {
         if(pozitiiParcurgere[i] == -1) // elementul nu a fost vizitat pana acum
         {
-            componenteTareConexe(i, pozitie, mystack);
+            algoritmComponenteTareConexe(i, pozitie, mystack, pozitiiParcurgere, pozitiiMinimeParcurgere, elemPeStiva, listaComponenteTareConexe);
         }
     }
 
-    //afisarea componentelor tare conexe
-    unsigned int nrComponenteTareConexe = listaComponenteTareConexe.size();
-    out << nrComponenteTareConexe << "\n";
-
-    for(int i = 0; i < nrComponenteTareConexe; i++){
-        for(int j = 0; j < listaComponenteTareConexe[i].size(); j++){
-            out << listaComponenteTareConexe[i][j] << " ";
-        }
-        out << "\n";
-    }
-
-//    for(int i = 1; i <= noduri; i++){
-//        cout<<"\n"<<i<<" "<<pozitiiParcurgere[i];
-//    }
+    return listaComponenteTareConexe;
 
 }
 
-void Graf::componenteTareConexe(int nodCurent, int &pozitie, stack<int> &mystack){
+void Graf::algoritmComponenteTareConexe(int nodCurent, int &pozitie, stack<int> &mystack, vector<int> &pozitiiParcurgere, vector<int> &pozitiiMinimeParcurgere, vector<bool> &elemPeStiva, vector<vector<int>> &listaComponenteTareConexe){
     mystack.push(nodCurent);
     elemPeStiva[nodCurent] = true; //elementul curent este pe stiva
     pozitiiParcurgere[nodCurent] = pozitie;
@@ -399,7 +369,7 @@ void Graf::componenteTareConexe(int nodCurent, int &pozitie, stack<int> &mystack
         if(pozitiiParcurgere[vecin] == -1){
             //vecinul nu a fost vizitat, deci are indexul -1
 
-            componenteTareConexe(vecin, pozitie, mystack);
+            algoritmComponenteTareConexe(vecin, pozitie, mystack, pozitiiParcurgere, pozitiiMinimeParcurgere, elemPeStiva, listaComponenteTareConexe);
 
             //update la nivel minim pentru nodul curent
             pozitiiMinimeParcurgere[nodCurent] = min(pozitiiMinimeParcurgere[nodCurent], pozitiiMinimeParcurgere[vecin]);
@@ -439,7 +409,7 @@ void Graf::componenteTareConexe(int nodCurent, int &pozitie, stack<int> &mystack
 
 /* Muchii Critice */
 
-void Graf::gasireMuchiiCritice(int nodCurent, int &adancime){
+void Graf::gasireMuchiiCritice(int nodCurent, int &adancime, vector<int> &adancimeParcurgere, vector<int> &adancimeMinimaParcurgere, vector<vector<int>> &muchiiCritice, vector<int> &parinti){
     adancimeMinimaParcurgere[nodCurent] = adancime;
     adancimeParcurgere[nodCurent] = adancime;
 
@@ -459,7 +429,7 @@ void Graf::gasireMuchiiCritice(int nodCurent, int &adancime){
             //vecinul nu a fost vizitat
             adancime += 1;
             parinti[vecin] = nodCurent;
-            gasireMuchiiCritice(vecin, adancime);
+            gasireMuchiiCritice(vecin, adancime, adancimeParcurgere, adancimeMinimaParcurgere, muchiiCritice, parinti);
 
             adancimeMinimaParcurgere[nodCurent] = min(adancimeMinimaParcurgere[nodCurent], adancimeMinimaParcurgere[vecin]);
 
@@ -471,6 +441,12 @@ void Graf::gasireMuchiiCritice(int nodCurent, int &adancime){
 }
 
 vector<vector<int>> Graf::criticalConnections(int n, vector<vector<int>>& connections) {
+    //vectori pentru Muchii Critice
+    vector<int> adancimeParcurgere;
+    vector<int> adancimeMinimaParcurgere;
+    vector<vector<int>> muchiiCritice;
+    vector<int> parinti;
+
     for(int i = 0; i < connections.size(); i++){
         listaAdiacenta[connections[i][1]].push_back(connections[i][0]);
         listaAdiacenta[connections[i][0]].push_back(connections[i][1]);
@@ -484,14 +460,8 @@ vector<vector<int>> Graf::criticalConnections(int n, vector<vector<int>>& connec
     std::fill(std::begin(adancimeMinimaParcurgere), std::begin(adancimeMinimaParcurgere)+maxim, -1);
     std::fill(std::begin(parinti), std::begin(parinti)+maxim, 0);
 
-//         for(int i = 1; i <= n; i++){
-//             if (pozitiiParcurgere[i] == -1){
-
-//             }
-//         }
-
     int radacina = 0, adancimeRadacina = 0;
-    gasireMuchiiCritice(radacina, adancimeRadacina);
+    gasireMuchiiCritice(radacina, adancimeRadacina, adancimeParcurgere, adancimeMinimaParcurgere, muchiiCritice, parinti);
 
     return muchiiCritice;
 
@@ -504,8 +474,26 @@ vector<vector<int>> Graf::criticalConnections(int n, vector<vector<int>>& connec
 
 /* Algoritmul lui Dijkstra */
 
-void Graf::Dijkstra(ostream &out) {
-    initializareDijkstra();
+vector<int> Graf::Dijkstra(int nodStart) {
+
+    // initializare Dijkstra
+    vector<int> distante;
+    vector<bool> vizitate;
+
+    distante.resize(noduri + 1);
+    vizitate.resize(noduri + 1);
+
+    fill(std::begin(distante), std::begin(distante) + noduri + 1, infinit);
+    fill(std::begin(vizitate), std::begin(vizitate) + noduri + 1, false);
+
+    // min-heap
+    priority_queue<pair<int, int>, std::vector<pair<int, int>>, std::greater<>> minHeap;
+
+    distante[nodStart] = 0;
+    //vizitate[nodStart] = true;
+
+    //punem nodul de start in heap
+    minHeap.push({distante[nodStart], nodStart});
 
     while (!minHeap.empty()){
         //minimul din heap e in top
@@ -513,6 +501,11 @@ void Graf::Dijkstra(ostream &out) {
 
         //dam pop pe priority queue imediat cum salvam top-ul
         minHeap.pop();
+
+        // daca am trecut prin nodul din top, nu mai facem tot algoritmul pentru el
+        if (vizitate[elementSiDistantaMin.second]){
+            continue;
+        }
 
         // vizitam un nod doar cand el ajunge in top-ul heap-ului
         vizitate[elementSiDistantaMin.second] = true;
@@ -524,6 +517,8 @@ void Graf::Dijkstra(ostream &out) {
             // listaAdiacenta.second -> costul muchiei nodCurent - vecin
 
             if(!vizitate[vecinSiCost.first]){
+                // daca nu e vizitat, el nu e in arbore
+
                 int distantaNouaVecin = distante[elementSiDistantaMin.second] + vecinSiCost.second;
 
                 if (distantaNouaVecin < distante[vecinSiCost.first]){
@@ -536,35 +531,36 @@ void Graf::Dijkstra(ostream &out) {
         }
     }
 
-    // incepem de la 2, pentru ca nodul 1 e start-ul
-    for(int i = 2; i <= noduri; i++){
-        if (distante[i] != infinit){
-            out << distante[i] << " ";
-        }
-        else {
-            out << 0 << " ";
-        }
-    }
-}
+    return distante;
 
-void Graf::initializareDijkstra(){
-    distante.resize(maxim);
-    vizitate.resize(maxim);
-
-    fill(std::begin(distante), std::begin(distante)+maxim, infinit);
-    fill(std::begin(vizitate), std::begin(vizitate)+maxim, false);
-
-    distante[1] = 0;
-    vizitate[1] = true;
-
-    //punem nodul de start in heap
-    minHeap.push({distante[1], 1});
 }
 
 /* APM */
 
-void Graf::ApmPrim(ofstream &out) {
-    initializarePrim();
+pair<vector<pair<int, int>>, int> Graf::ApmPrim(int nodStart) {
+    // initializare Prim
+
+    // min-heap
+    priority_queue<pair<int, int>, std::vector<pair<int, int>>, std::greater<>> minHeap;
+
+    // vectori pentru Prim
+    vector<int> distante;
+    vector<bool> vizitate;
+    vector<pair<int, int>> muchiiApm;
+    vector<int> vectorTati;
+
+    distante.resize(maxim);
+    vizitate.resize(maxim);
+    vectorTati.resize(maxim);
+
+    fill(std::begin(distante), std::begin(distante)+maxim, infinit);
+    fill(std::begin(vizitate), std::begin(vizitate)+maxim, false);
+    fill(std::begin(vectorTati), std::begin(vectorTati)+maxim, 0);
+
+    distante[nodStart] = 0;
+
+    //punem nodul de start in heap
+    minHeap.push({distante[nodStart], nodStart});
 
     int costMinimApm = 0;
 
@@ -593,6 +589,7 @@ void Graf::ApmPrim(ofstream &out) {
             // listaAdiacenta.second -> costul muchiei nodCurent - vecin
 
             if(!vizitate[vecinSiCost.first]){
+                // daca nu a fost vizitat, el nu e in arbore
 
                 if (vecinSiCost.second < distante[vecinSiCost.first]){
                     distante[vecinSiCost.first] = vecinSiCost.second;
@@ -614,40 +611,33 @@ void Graf::ApmPrim(ofstream &out) {
             muchiiApm.emplace_back(i, vectorTati[i]);
         }
 
-    afisarePrim(costMinimApm, out);
+    return {muchiiApm, costMinimApm};
 
 }
-
-void Graf::initializarePrim() {
-    distante.resize(maxim);
-    vizitate.resize(maxim);
-    vectorTati.resize(maxim);
-
-    fill(std::begin(distante), std::begin(distante)+maxim, infinit);
-    fill(std::begin(vizitate), std::begin(vizitate)+maxim, false);
-    fill(std::begin(vectorTati), std::begin(vectorTati)+maxim, 0);
-
-    distante[1] = 0;
-
-    //punem nodul de start in heap
-    minHeap.push({distante[1], 1});
-}
-
-void Graf::afisarePrim(int cost, ostream &out) {
-    out << cost << "\n";
-
-    out << muchiiApm.size() << "\n";
-
-    for(auto pereche : muchiiApm){
-        out << pereche.first << " " << pereche.second << "\n";
-    }
-}
-
 
 /* Algoritm Bellman-Ford */
 
-void Graf::BellmanFord(ofstream &out) {
-    initializareBellManFord();
+void Graf::BellmanFord(ofstream &out, int nodStart) {
+    // initializare Bellman-Ford
+    vector<int> elemInCoada;
+    vector<int> numarParcurgeri;
+    vector<int> distante;
+
+    distante.resize(maxim);
+    elemInCoada.resize(maxim);
+    numarParcurgeri.resize(maxim);
+
+    fill(std::begin(distante), std::begin(distante)+maxim, infinit);
+    fill(std::begin(elemInCoada), std::begin(elemInCoada)+maxim, false);
+    fill(std::begin(numarParcurgeri), std::begin(numarParcurgeri)+maxim,0);
+
+    queue<int> myqueue;
+
+    distante[nodStart] = 0;
+    elemInCoada[nodStart] = true;
+
+    //parametru nodStart
+    myqueue.push(nodStart);
 
     while(!myqueue.empty()) {
         int nodCurent = myqueue.front();
@@ -687,26 +677,9 @@ void Graf::BellmanFord(ofstream &out) {
             out << 0 << " ";
         }
     }
-
-}
-
-void Graf::initializareBellManFord() {
-    distante.resize(maxim);
-    elemInCoada.resize(maxim);
-    numarParcurgeri.resize(maxim);
-
-    fill(std::begin(distante), std::begin(distante)+maxim, infinit);
-    fill(std::begin(elemInCoada), std::begin(elemInCoada)+maxim, false);
-    fill(std::begin(numarParcurgeri), std::begin(numarParcurgeri)+maxim,0);
-
-    distante[1] = 0;
-    elemInCoada[1] = true;
-
-    myqueue.push(1);
 }
 
 /* Paduri de multimi disjuncte */
-
 
 void Disjoint::citireDisjoint(const int &multimi, const int &operatii, istream &in, ostream &out) {
     int operatie, x, y;
@@ -774,52 +747,92 @@ void Disjoint::reuneste(int nod1, int nod2) {
 }
 
 
-int main() {
+vector<vector<int>> Graf::royFloyd(vector<vector<int>> &distante) {
+    // Complexitate -> O(n^3)
 
-//    ifstream in("bfs.in");
-//    ofstream out("bfs.out");
+    // Vrem sa determinam distanta minima de la un nod x la un nod y, pentru
+    // oricare x si y noduri in graf
 
-//    ifstream in("dfs.in");
-//    ofstream out("dfs.out");
+    // Idee: distante[x][y] = min{distante[x][y], distante[x][k] + distante[k][y]}
 
-//    ifstream in("sortaret.in");
-//    ofstream out("sortaret.out");
+    // Algoritm:
+    // - pentru fiecare nod (varf intermediar) parcurgem matricea distantelor (for-ul dupa k)
+    // - daca gasim un drum de la x la y care trece prin k, de lungime
+    // mai mica decat lungimea drumului anterior de la x la y, actualizam
+    // distante[x][y]
 
-//    ifstream in("sortaret.in");
-//    ofstream out("sortaret.out");
+    for(int k = 1; k <= noduri; k++){
+        for(int i = 1; i <= noduri; i++){
+            for(int j = 1; j <= noduri; j++){
 
-//    ifstream in("hh.in");
-//    ofstream out("hh.out");
+                // spargem drumul de la i la j in suma drumurilor de la i la k si de la k la j
 
-//    ifstream in("biconex.in");
-//    ofstream out("biconex.out");
+                if (distante[i][j] > (distante[i][k] + distante[k][j])){
+                    distante[i][j] = distante[i][k] + distante[k][j];
+                }
+            }
+        }
+    }
 
-//    ifstream in("ctc.in");
-//    ofstream out("ctc.out");
+    return distante;
 
-//    ifstream in("criticalConnections.in");
-//    ofstream out("criticalConnections.out");
+}
 
-//    ifstream in("dijkstra.in");
-//    ofstream out("dijkstra.out");
+void Graf::afisareMatrice(vector<vector<int>> matrice, ofstream &out) {
+    for(int i = 1; i <= noduri; i++){
+        for(int j = 1; j <= noduri; j++){
+            if(matrice[i][j] != infinit)
+                out << matrice[i][j] << " ";
+            else
+                out << 0 << " ";
+        }
+        out << "\n";
+    }
+}
 
-//    ifstream in("apm.in");
-//    ofstream out("apm.out");
 
-    ifstream in("bellmanford.in");
-    ofstream out("bellmanford.out");
+/* Rezolvari InfoArena si LeetCode */
 
-//    ifstream in("disjoint.in");
-//    ofstream out("disjoint.out");
+void rezolvareDFS(){
+    // https://www.infoarena.ro/problema/dfs
 
-    int noduri, muchii, extremitateInitiala, extremitateFinala, nodStart;
+    ifstream in("dfs.in");
+    ofstream out("dfs.out");
+
+    int noduri, muchii, extremitateInitiala, extremitateFinala;
 
     in >> noduri >> muchii;
 
-    // vector<vector<int>> listaMuchii; //pentru muchii critice
+    Graf mygraf(noduri, muchii);
 
-    /* pentru BFS -> citim si nodul de start */
-    //in >> noduri >> muchii >> nodStart;
+    for(int i = 0; i < muchii; i++)
+    {
+        in >> extremitateInitiala >> extremitateFinala;
+
+        /* citire DFS -> pentru graf neorientat */
+        mygraf.construiesteGrafNeorientat(extremitateInitiala, extremitateFinala);
+
+    }
+
+    /* apel DFS */
+    //apelam functia numaraConexe()
+    out << mygraf.numaraConexe();
+
+    in.close();
+    out.close();
+}
+
+void rezolvareBFS(){
+    // https://www.infoarena.ro/problema/bfs
+
+    ifstream in("bfs.in");
+    ofstream out("bfs.out");
+
+    int noduri, muchii, extremitateInitiala, extremitateFinala, nodStart;
+
+    vector<int> distanteBfs;
+
+    in >> noduri >> muchii >> nodStart;
 
     Graf mygraf(noduri, muchii);
 
@@ -828,31 +841,330 @@ int main() {
         in >> extremitateInitiala >> extremitateFinala;
 
         /* citire BFS -> pentru graf orientat */
-        //mygraf.construiesteGrafOrientat(extremitateInitiala, extremitateFinala);
+        mygraf.construiesteGrafOrientat(extremitateInitiala, extremitateFinala);
+    }
 
-        /* citire DFS -> pentru graf neorientat */
-        //mygraf.construiesteGrafNeorientat(extremitateInitiala, extremitateFinala);
+    /* apel BFS */
 
-        /* citire Sortare Topologica -> pentru graf orientat */
-        //mygraf.construiesteGradeInterioare(extremitateInitiala, extremitateFinala);
+    distanteBfs = mygraf.bfs(nodStart);
+
+    mygraf.afisareDistante(distanteBfs, out);
+
+    in.close();
+    out.close();
+}
+
+void rezolvareBiconex(){
+    // https://www.infoarena.ro/problema/biconex
+
+    ifstream in("biconex.in");
+    ofstream out("biconex.out");
+
+    int noduri, muchii, extremitateInitiala, extremitateFinala;
+    vector<vector<int>> componenteBiconexe;
+
+    in >> noduri >> muchii;
+
+    Graf mygraf(noduri, muchii);
+
+    for(int i = 0; i < muchii; i++)
+    {
+        in >> extremitateInitiala >> extremitateFinala;
 
         /* citire Componente Biconexe -> pentru graf neorientat */
-        //mygraf.construiesteGrafNeorientat(extremitateInitiala, extremitateFinala);
+        mygraf.construiesteGrafNeorientat(extremitateInitiala, extremitateFinala);
 
-        /* citire Componente Biconexe -> pentru graf neorientat */
-        //mygraf.construiesteGrafNeorientat(extremitateInitiala, extremitateFinala);
+    }
+
+    componenteBiconexe = mygraf.componenteBiconexe();
+
+    //afisarea componentelor biconexe
+    unsigned int nrComponenteBiconexe = componenteBiconexe.size();
+    out << nrComponenteBiconexe << "\n";
+
+    for(int i = 0; i < nrComponenteBiconexe; i++){
+        for(int j = 0; j < componenteBiconexe[i].size(); j++){
+            out << componenteBiconexe[i][j] << " ";
+        }
+        out << "\n";
+    }
+
+    in.close();
+    out.close();
+}
+
+void rezolvareCTC(){
+    // https://www.infoarena.ro/problema/ctc
+
+    ifstream in("ctc.in");
+    ofstream out("ctc.out");
+
+
+    int noduri, muchii, extremitateInitiala, extremitateFinala;
+    vector<vector<int>> componenteTareConexe;
+
+    in >> noduri >> muchii;
+
+    Graf mygraf(noduri, muchii);
+
+    for(int i = 0; i < muchii; i++)
+    {
+        in >> extremitateInitiala >> extremitateFinala;
 
         /* citire Componente Tare Conexe -> pentru graf orientat */
-        //mygraf.construiesteGrafOrientat(extremitateInitiala, extremitateFinala);
+        mygraf.construiesteGrafOrientat(extremitateInitiala, extremitateFinala);
+
+    }
+
+    componenteTareConexe = mygraf.componenteTareConexe();
+
+    //afisarea componentelor tare conexe
+    unsigned int nrComponenteTareConexe = componenteTareConexe.size();
+    out << nrComponenteTareConexe << "\n";
+
+    for(int i = 0; i < nrComponenteTareConexe; i++){
+        for(int j = 0; j < componenteTareConexe[i].size(); j++){
+            out << componenteTareConexe[i][j] << " ";
+        }
+        out << "\n";
+    }
+
+//    for(int i = 1; i <= noduri; i++){
+//        cout<<"\n"<<i<<" "<<pozitiiParcurgere[i];
+//    }
+
+    in.close();
+    out.close();
+}
+
+void rezolvareHavelHakimi(){
+
+    ifstream in("hh.in");
+    ofstream out("hh.out");
+
+    /* citire Havel-Hakimi */
+    int numar, valoare;
+
+    vector<int> listaGrade;
+    in >> numar;
+//    cout << numar;
+
+    for(int i = 0; i < numar; i++)
+    {
+        in >> valoare;
+        listaGrade.push_back(valoare);
+    }
+
+    /* algoritm Havel-Hakimi */
+
+    havelHakimi(listaGrade, out);
+
+    in.close();
+    out.close();
+}
+
+void rezolvareMuchieCritica(){
+
+    ifstream in("criticalConnections.in");
+    ofstream out("criticalConnections.out");
+
+    int noduri, muchii, extremitateInitiala, extremitateFinala;
+
+    in >> noduri >> muchii;
+
+    vector<vector<int>> listaMuchii; //pentru muchii critice
+    vector<vector<int>> muchiiCritice;
+
+    Graf mygraf(noduri, muchii);
+
+    for(int i = 0; i < muchii; i++)
+    {
+        in >> extremitateInitiala >> extremitateFinala;
 
         /* citire Muchii Critice -> pentru graf neorientat */
-        //listaMuchii.push_back({extremitateInitiala, extremitateFinala});
+        listaMuchii.push_back({extremitateInitiala, extremitateFinala});
+
+    }
+
+    muchiiCritice = mygraf.criticalConnections(noduri, listaMuchii);
+
+    for(auto muchie : muchiiCritice){
+        out << muchie[0] << " " << muchie[1] << "\n";
+    }
+
+    in.close();
+    out.close();
+}
+
+void rezolvareSortareTopologica(){
+    // https://www.infoarena.ro/problema/sortaret
+
+    ifstream in("sortaret.in");
+    ofstream out("sortaret.out");
+
+    // vector care retine gradele interioare ale nodurilor din graf
+    vector<int> gradeInterioare;
+    gradeInterioare.resize(maxim);
+    std::fill(std::begin(gradeInterioare), std::begin(gradeInterioare)+maxim, 0);
+
+    vector<int> noduriSortTopo;
+
+    int noduri, muchii, extremitateInitiala, extremitateFinala;
+
+    in >> noduri >> muchii;
+
+    Graf mygraf(noduri, muchii);
+
+    for(int i = 0; i < muchii; i++)
+    {
+        in >> extremitateInitiala >> extremitateFinala;
+
+        /* citire Sortare Topologica -> pentru graf orientat */
+        mygraf.construiesteGradeInterioare(extremitateInitiala, extremitateFinala, gradeInterioare);
+
+    }
+
+    /* apel Sortare Topologica */
+    noduriSortTopo = mygraf.sortareTopologica(gradeInterioare);
+
+    for(auto nod : noduriSortTopo){
+        out << nod << " ";
+    }
+
+    in.close();
+    out.close();
+}
+
+void rezolvareAPM(){
+    // https://www.infoarena.ro/problema/apm
+
+    ifstream in("apm.in");
+    ofstream out("apm.out");
+
+    int noduri, muchii, extremitateInitiala, extremitateFinala;
+
+    in >> noduri >> muchii;
+
+    Graf mygraf(noduri, muchii);
+
+    for(int i = 0; i < muchii; i++)
+    {
+        in >> extremitateInitiala >> extremitateFinala;
+
+        /* citire APM -> pentru graf neorientat ponderat */
+        int costMuchie;
+        in >> costMuchie;
+
+        mygraf.construiesteCuCosturiNeorientate(extremitateInitiala, extremitateFinala, costMuchie);
+
+    }
+
+    auto rezultat = mygraf.ApmPrim();
+
+    auto cost = rezultat.second;
+    auto muchiiApm = rezultat.first;
+
+    out << cost << "\n";
+
+    out << muchiiApm.size() << "\n";
+
+    for(auto pereche : muchiiApm){
+        out << pereche.first << " " << pereche.second << "\n";
+    }
+
+    in.close();
+    out.close();
+}
+
+void rezolvareDijkstra(){
+    // https://www.infoarena.ro/problema/dijkstra
+
+    ifstream in("dijkstra.in");
+    ofstream out("dijkstra.out");
+
+    int noduri, muchii, extremitateInitiala, extremitateFinala;
+    vector<int> distante;
+
+    in >> noduri >> muchii;
+
+    // pentru cazul in care citim si nodul de start
+    // int nodStart;
+    // in >> nodStart;
+
+    Graf mygraf(noduri, muchii);
+
+    for(int i = 0; i < muchii; i++)
+    {
+        in >> extremitateInitiala >> extremitateFinala;
 
         /* citire Dijkstra -> pentru graf orientat ponderat */
-//        int costMuchie;
-//        in >> costMuchie;
-//
-//        mygraf.construiesteCuCosturiOrientate(extremitateInitiala, extremitateFinala, costMuchie);
+        int costMuchie;
+        in >> costMuchie;
+
+        mygraf.construiesteCuCosturiOrientate(extremitateInitiala, extremitateFinala, costMuchie);
+
+    }
+
+    distante = mygraf.Dijkstra();
+    // distante = mygraf.Dijkstra(nodStart);
+
+    // incepem de la 2, pentru ca nodul 1 e start-ul
+    for(int i = 2; i <= noduri; i++){
+        if (distante[i] != infinit){
+            out << distante[i] << " ";
+        }
+        else {
+            out << 0 << " ";
+        }
+    }
+
+    in.close();
+    out.close();
+}
+
+void rezolvareDisjoint(){
+    // https://www.infoarena.ro/problema/disjoint
+
+    ifstream in("disjoint.in");
+    ofstream out("disjoint.out");
+
+    // n -> numarul de multimi
+    // m -> numarul de operatii
+
+    int numarOperatii, numarMultimi;
+    in >> numarMultimi >> numarOperatii;
+
+    Disjoint padureDeMultimiDisjuncte(numarMultimi, numarOperatii);
+
+    padureDeMultimiDisjuncte.initializare();
+
+    padureDeMultimiDisjuncte.citireDisjoint(numarMultimi, numarOperatii, in, out);
+
+    in.close();
+    out.close();
+}
+
+void rezolvareBellmanFord(){
+    // https://www.infoarena.ro/problema/bellmanford
+
+    ifstream in("bellmanford.in");
+    ofstream out("bellmanford.out");
+
+
+    int noduri, muchii, extremitateInitiala, extremitateFinala, nodStart;
+
+    in >> noduri >> muchii;
+
+    // in cazul in care citim si nodul de start
+
+    // int nodStart;
+    // in >> nodStart;
+
+    Graf mygraf(noduri, muchii);
+
+    for(int i = 0; i < muchii; i++)
+    {
+        in >> extremitateInitiala >> extremitateFinala;
 
         /* citire Bellman-Ford -> pentru graf orientat ponderat */
         int costMuchie;
@@ -860,84 +1172,92 @@ int main() {
 
         mygraf.construiesteCuCosturiOrientate(extremitateInitiala, extremitateFinala, costMuchie);
 
-        /* citire APM -> pentru graf neorientat ponderat */
-//        int costMuchie;
-//        in >> costMuchie;
-//
-//        mygraf.construiesteCuCosturiNeorientate(extremitateInitiala, extremitateFinala, costMuchie);
-
     }
 
-    /* citire Havel-Hakimi */
-//    int numar, valoare;
-//
-//    vector<int> listaGrade;
-//    in >> numar;
-////    cout << numar;
-//
-//    for(int i = 0; i < numar; i++)
-//    {
-//        in >> valoare;
-//        listaGrade.push_back(valoare);
-//    }
-
-    /* algoritm Havel-Hakimi */
-
-//    cout<<suma(listaGrade);
-
-//    havelHakimi(listaGrade, out);
-
-    /* apel BFS */
-
-    //mygraf.bfs(nodStart, out);
-
-    /* apel DFS */
-//    std::fill(std::begin(vizitate), std::begin(vizitate)+maxim, false);
-    //apelam functia numaraConexe()
-    //out << mygraf.numaraConexe();
-
-    /* apel Sortare Topologica */
-    //mygraf.sortareTopologica(out);
-
-    /* apel Componente Biconexe */
-//    std::fill(std::begin(vizitate), std::begin(vizitate)+maxim, false);
-//    mygraf.initializareCompBiconexe(out);
-
-    /* apel Componente Tare Conexe */
-//    mygraf.initializareCompTareConexe(out);
-
-    /* apel Muchii Critice */
-//    vector<vector<int>> muchiiCritice = mygraf.criticalConnections(noduri, listaMuchii);
-//
-//    for(auto muchie : muchiiCritice){
-//        out << muchie[0] << " " << muchie[1] << "\n";
-//    }
-
-    /* apel Dijkstra */
-//    mygraf.Dijkstra(out);
-
-    /* apel Apm */
-//    mygraf.ApmPrim(out);
-
-    /* apel Bellman-Ford */
+    // mygraf.BellmanFord(out, nodStart);
     mygraf.BellmanFord(out);
-
-    /* apel Paduri de multimi disjuncte */
-
-//    // n -> numarul de multimi
-//    // m -> numarul de operatii
-//
-//    int numarOperatii, numarMultimi;
-//    in >> numarMultimi >> numarOperatii;
-//
-//    Disjoint padureDeMultimiDisjuncte(numarMultimi, numarOperatii);
-//
-//    padureDeMultimiDisjuncte.initializare();
-//
-//    padureDeMultimiDisjuncte.citireDisjoint(numarMultimi, numarOperatii, in, out);
-
 
     in.close();
     out.close();
+}
+
+void rezolvareFloydWarshall(){
+    // https://infoarena.ro/problema/royfloyd
+
+    ifstream in ("royfloyd.in");
+    ofstream out("royfloyd.out");
+
+    int noduri, distanta;
+
+    in >> noduri;
+
+    // primul parametru este numarul de linii
+    // al doilea parametru este container-ul si size-ul container-ului (numarul de coloane)
+    vector<vector<int>> matriceDistanteMinime(noduri + 1, vector<int>(noduri + 1));
+
+    for(int i = 1; i <= noduri; i++){
+        for(int j = 1; j <= noduri; j++){
+
+            in >> distanta;
+
+            // daca citim 0 -> nu exista muchie intre i si j
+            // vrem sa lasam distanta 0 doar pentru muchiile (i, i)
+            if(i != j && distanta == 0){
+                matriceDistanteMinime[i][j] = infinit;
+            }
+            else{
+                matriceDistanteMinime[i][j] = distanta;
+            }
+        }
+    }
+
+    Graf mygraf(noduri);
+
+    matriceDistanteMinime = mygraf.royFloyd(matriceDistanteMinime);
+
+    mygraf.afisareMatrice(matriceDistanteMinime, out);
+
+    in.close();
+    out.close();
+}
+
+int main() {
+
+    /* apel DFS */
+//    rezolvareDFS();
+
+    /* apel BFS */
+//    rezolvareBFS();
+
+    /* apel Sortare Topologica */
+//    rezolvareSortareTopologica();
+
+    /* apel Componente Biconexe */
+//    rezolvareBiconex();
+
+    /* apel Componente Tare Conexe */
+//    rezolvareCTC();
+
+    /* apel Muchii Critice */
+//    rezolvareMuchieCritica();
+
+    /* apel Havel-Hakimi */
+//    rezolvareHavelHakimi();
+
+    /* apel Dijkstra */
+//    rezolvareDijkstra();
+
+    /* apel Apm */
+//    rezolvareAPM();
+
+    /* apel Bellman-Ford */
+//    rezolvareBellmanFord();
+
+    /* apel Paduri de multimi disjuncte */
+//    rezolvareDisjoint();
+
+    /* apel Floyd-Warshall */
+    rezolvareFloydWarshall();
+
     return 0;
 }
