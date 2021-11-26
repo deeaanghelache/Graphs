@@ -9,7 +9,10 @@
 
 using namespace std;
 
-const int maxim = 50001;
+//const int maxim = 200001;
+const int maxim = 100001;
+//const int maxim = 50001;
+
 const int infinit = std::numeric_limits<int>::max();
 const int maximDisjoint = 100001;
 
@@ -26,6 +29,7 @@ class Graf{
     void componenteBiconexeDfs(int nodCurent, int adancime, stack<int>& mystack, vector<int> &adancimeNod, vector<int> &nivelMinimNod, vector<bool> &vizitate, vector<vector<int>> &componenteBiconexe);
     void algoritmComponenteTareConexe(int nodCurent, int &pozitie, stack<int> &mystack, vector<int> &pozitiiParcurgere, vector<int> &pozitiiMinimeParcurgere, vector<bool> &elemPeStiva, vector<vector<int>> &listaComponenteTareConexe);
     void gasireMuchiiCritice(int nodCurent, int &adancime, vector<int> &adancimeParcurgere, vector<int> &adancimeMinimaParcurgere, vector<vector<int>> &muchiiCritice, vector<int> &parinti);
+    pair<int, int> maximVector(vector<int> vector);
 
 public:
     //functii pentru crearea listelor de adiacenta, in functie de tipul grafului (Orientat/Neorientat)
@@ -42,7 +46,7 @@ public:
 
     //functii
     int numaraConexe();
-    vector<int> bfs(int nodStart);
+    vector<int> bfs(int nodStart = 1);
     vector<int> sortareTopologica(vector<int> &gradeInterioare);
     vector<vector<int>> componenteBiconexe();
     vector<vector<int>> componenteTareConexe();
@@ -51,8 +55,9 @@ public:
     vector<int> Dijkstra(int nodStart = 1);
     pair<vector<pair<int, int>>, int> ApmPrim(int nodStart = 1);
     void BellmanFord(ofstream &out, int nodStart = 1);
-    vector<vector<int>> royFloyd(vector<vector<int>> &distante);
-    void afisareMatrice(vector<vector<int>> matrice, ofstream &out);
+    vector<vector<long long>> royFloyd(vector<vector<long long>> &distante);
+    void afisareMatrice(vector<vector<long long>> matrice, ofstream &out);
+    int diametruArbore();
 };
 
 
@@ -70,6 +75,8 @@ public:
     int reprezentant(int nod);
     void reuneste(int nod1, int nod2);
 };
+
+Graf::Graf() {}
 
 Graf::Graf(int noduri) : noduri(noduri) {}
 
@@ -98,7 +105,10 @@ void Graf::construiesteCuCosturiNeorientate(const int &start, const int &final, 
     listaAdiacentaCuCosturi[final].emplace_back(start, cost);
 }
 
-/* functii pentru DFS */
+/* DFS - Parcurgerea in adancime */
+
+// Complexitate DFS = O(m + n)
+
 int Graf::numaraConexe() {
     vector<bool> vizitate;
 
@@ -132,7 +142,10 @@ void Graf::dfs(int nodCurent, vector<bool> &vizitate) {
     }
 }
 
-/* functii pentru BFS */
+/* BFS - Parcurgerea in latime */
+
+// Complexitate BFS = O(m + n)
+
 void Graf::afisareDistante(vector<int> distante, std::ostream &out){
     for(int i = 1; i <= noduri; i++)
         out<<distante[i]<<" ";
@@ -158,7 +171,7 @@ vector<int> Graf::bfs(int nodStart) {
     while(!queueBfs.empty())
     {
         int nodCurent = queueBfs.front();
-        for(int i=0; i<listaAdiacenta[nodCurent].size(); i++)
+        for(int i = 0; i < listaAdiacenta[nodCurent].size(); i++)
         {
             if(!vizitate[listaAdiacenta[nodCurent][i]])
             {
@@ -207,7 +220,10 @@ vector<int> Graf::sortareTopologica(vector<int> &gradeInterioare) {
 
 /* Havel-Hakimi */
 
-Graf::Graf() {}
+// Complexitate Havel-Hakimi = O(n^2 * log n) <- cu sort-ul din STL
+//                           = O((n+max) * n) <- cu CountSort
+
+
 
 int suma(const vector<int>& grade){
     int sumaGrade = 0;
@@ -747,7 +763,7 @@ void Disjoint::reuneste(int nod1, int nod2) {
 }
 
 
-vector<vector<int>> Graf::royFloyd(vector<vector<int>> &distante) {
+vector<vector<long long>> Graf::royFloyd(vector<vector<long long>> &distante) {
     // Complexitate -> O(n^3)
 
     // Vrem sa determinam distanta minima de la un nod x la un nod y, pentru
@@ -778,16 +794,61 @@ vector<vector<int>> Graf::royFloyd(vector<vector<int>> &distante) {
 
 }
 
-void Graf::afisareMatrice(vector<vector<int>> matrice, ofstream &out) {
+void Graf::afisareMatrice(vector<vector<long long>> matrice, ofstream &out) {
     for(int i = 1; i <= noduri; i++){
         for(int j = 1; j <= noduri; j++){
-            if(matrice[i][j] != infinit)
+            if(i != j || matrice[i][j] != infinit)
                 out << matrice[i][j] << " ";
             else
                 out << 0 << " ";
         }
         out << "\n";
     }
+}
+
+/* Diametrul unui arbore */
+
+int Graf::diametruArbore() {
+
+    // Complexitate -> O(n)
+    // Diametrul unui arbore  reprezintă lungimea drumului (ca numar de noduri) intre cele mai indepartate două frunze
+
+    // Idee:
+    // -> facem bfs dintr-un nod oarecare
+    // -> intrucat bfs-ul ne da distantele de la nodul pentru care a fost apelat, la toate nodurile, retinem care este nodul cu distanta maxima
+    // din vectorul de distante (cu functia maximVector)
+    // -> apelam bfs pentru nodul cu distanta maxima
+    // -> diametrul arborelui va fi egal cu distanta maxima dupa al doilea bfs + 1 (nodul de start are distanta 0 in bfs -> numara diametru-1 noduri)
+
+    vector<int> distante;
+    distante = bfs();
+
+    int primulCapat, ultimulCapat;
+
+    //functia maxim vector returneaza o pereche care are pe prima pozitie maximul dintr-un vector
+    //dat ca parametru si pe a doua pozitie, pozitia maximului in vector
+    primulCapat = maximVector(distante).second;
+
+    distante = bfs(primulCapat);
+
+    ultimulCapat = maximVector(distante).second;
+
+    return distante[ultimulCapat] + 1;
+
+}
+
+// functie care imi returneaza maximul dintr-un vector si pozitia maximului
+pair<int, int> Graf::maximVector(vector<int> vector) {
+    int valoareMaxima = vector[1], pozitie = 1;
+
+    for(int i = 2; i <= noduri; i++){
+        if (vector[i] > valoareMaxima){
+            valoareMaxima = vector[i];
+            pozitie = i;
+        }
+    }
+
+    return {valoareMaxima, pozitie};
 }
 
 
@@ -1193,7 +1254,7 @@ void rezolvareFloydWarshall(){
 
     // primul parametru este numarul de linii
     // al doilea parametru este container-ul si size-ul container-ului (numarul de coloane)
-    vector<vector<int>> matriceDistanteMinime(noduri + 1, vector<int>(noduri + 1));
+    vector<vector<long long>> matriceDistanteMinime(noduri + 1, vector<long long>(noduri + 1));
 
     for(int i = 1; i <= noduri; i++){
         for(int j = 1; j <= noduri; j++){
@@ -1216,6 +1277,32 @@ void rezolvareFloydWarshall(){
     matriceDistanteMinime = mygraf.royFloyd(matriceDistanteMinime);
 
     mygraf.afisareMatrice(matriceDistanteMinime, out);
+
+    in.close();
+    out.close();
+}
+
+void rezolvareDarb(){
+    //https://infoarena.ro/problema/darb
+
+    ifstream in ("darb.in");
+    ofstream out("darb.out");
+
+    int noduri, extremitateInitiala, extremitateFinala;
+
+    in >> noduri;
+
+    Graf mygraf(noduri);
+
+    //e arbore
+
+    for(int i = 0; i <= noduri-1; i++){
+        in >> extremitateInitiala >> extremitateFinala;
+
+        mygraf.construiesteGrafNeorientat(extremitateInitiala, extremitateFinala);
+    }
+
+    out << mygraf.diametruArbore();
 
     in.close();
     out.close();
@@ -1257,7 +1344,12 @@ int main() {
 //    rezolvareDisjoint();
 
     /* apel Floyd-Warshall */
-    rezolvareFloydWarshall();
+//    rezolvareFloydWarshall();
+
+    /* apel Diametrul unui arbore */
+    rezolvareDarb();
+
+//    cout << infinit;
 
     return 0;
 }
