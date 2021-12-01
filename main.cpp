@@ -10,8 +10,9 @@
 using namespace std;
 
 //const int maxim = 200001;
-const int maxim = 100001;
+//const int maxim = 100001;
 //const int maxim = 50001;
+const int maxim = 1001;
 
 const int infinit = std::numeric_limits<int>::max();
 const int maximDisjoint = 100001;
@@ -30,14 +31,15 @@ class Graf{
     void algoritmComponenteTareConexe(int nodCurent, int &pozitie, stack<int> &mystack, vector<int> &pozitiiParcurgere, vector<int> &pozitiiMinimeParcurgere, vector<bool> &elemPeStiva, vector<vector<int>> &listaComponenteTareConexe);
     void gasireMuchiiCritice(int nodCurent, int &adancime, vector<int> &adancimeParcurgere, vector<int> &adancimeMinimaParcurgere, vector<vector<int>> &muchiiCritice, vector<int> &parinti);
     pair<int, int> maximVector(vector<int> vector);
+    //bool bfsEdmondsKarp(const int &nodStart, const int &nodFinal, vector<int> &tati, vector<vector<int>> capacitate, vector<vector<int>> flux);
 
 public:
     //functii pentru crearea listelor de adiacenta, in functie de tipul grafului (Orientat/Neorientat)
-    void construiesteGrafOrientat(const int &start, const int &final);
-    void construiesteGrafNeorientat(const int &start, const int &final);
-    void construiesteGradeInterioare(const int &start, const int &final, vector<int> &gradeInterioare);
-    void construiesteCuCosturiOrientate(const int &start, const int &final, const int &cost);
-    void construiesteCuCosturiNeorientate(const int &start, const int &final, const int &cost);
+    void pushListaAdiacentaGrafOrientat(const int &start, const int &final);
+    void pushListaAdiacentaGrafNeorientat(const int &start, const int &final);
+    void pushListaAdiacentaCuGradeInterioare(const int &start, const int &final, vector<int> &gradeInterioare);
+    void pushListaAdiacentaCuCosturiOrientate(const int &start, const int &final, const int &cost);
+    void pushListaAdiacentaCuCosturiNeorientate(const int &start, const int &final, const int &cost);
 
     //constructori
     Graf();
@@ -58,6 +60,7 @@ public:
     vector<vector<long long>> royFloyd(vector<vector<long long>> &distante);
     void afisareMatrice(vector<vector<long long>> matrice, ofstream &out);
     int diametruArbore();
+    //int EdmondsKarp(int start, int final);
 };
 
 
@@ -82,25 +85,25 @@ Graf::Graf(int noduri) : noduri(noduri) {}
 
 Graf::Graf(int noduri, int muchii) : noduri(noduri), muchii(muchii) {}
 
-void Graf::construiesteGrafNeorientat(const int &start, const int &final) {
+void Graf::pushListaAdiacentaGrafNeorientat(const int &start, const int &final) {
     listaAdiacenta[start].push_back(final);
     listaAdiacenta[final].push_back(start);
 }
 
-void Graf::construiesteGrafOrientat(const int &start, const int &final) {
+void Graf::pushListaAdiacentaGrafOrientat(const int &start, const int &final) {
     listaAdiacenta[start].push_back(final);
 }
 
-void Graf::construiesteGradeInterioare(const int &start, const int &final, vector<int> &gradeInterioare) {
+void Graf::pushListaAdiacentaCuGradeInterioare(const int &start, const int &final, vector<int> &gradeInterioare) {
     listaAdiacenta[start].push_back(final);
     gradeInterioare[final]++;
 }
 
-void Graf::construiesteCuCosturiOrientate(const int &start, const int &final, const int &cost) {
+void Graf::pushListaAdiacentaCuCosturiOrientate(const int &start, const int &final, const int &cost) {
     listaAdiacentaCuCosturi[start].emplace_back(final, cost);
 }
 
-void Graf::construiesteCuCosturiNeorientate(const int &start, const int &final, const int &cost) {
+void Graf::pushListaAdiacentaCuCosturiNeorientate(const int &start, const int &final, const int &cost) {
     listaAdiacentaCuCosturi[start].emplace_back(final, cost);
     listaAdiacentaCuCosturi[final].emplace_back(start, cost);
 }
@@ -224,6 +227,30 @@ vector<int> Graf::sortareTopologica(vector<int> &gradeInterioare) {
 //                           = O((n+max) * n) <- cu CountSort
 
 
+vector<int> countSort(vector<int> vectorParametru){
+    vector<int> frecventa;
+    frecventa.resize(maxim);
+    std::fill(std::begin(frecventa), std::begin(frecventa)+maxim, 0);
+
+    int elementMaxim = vectorParametru[0];
+    for(auto element : vectorParametru){
+        frecventa[element]++;
+
+        if(elementMaxim < element){
+            elementMaxim = element;
+        }
+    }
+
+    int contor = 0;
+    for(int i = elementMaxim; i >= 0; i--){
+        for(int j = 0; j < frecventa[i]; j++){
+            vectorParametru[contor] = i;
+            contor++;
+        }
+    }
+
+    return vectorParametru;
+}
 
 int suma(const vector<int>& grade){
     int sumaGrade = 0;
@@ -244,7 +271,8 @@ void havelHakimi(vector<int> grade, std::ostream &out){
     int n = grade.size();
 
     while(true) {
-        sort(grade.begin(), grade.end(), greater<>());
+        //sort(grade.begin(), grade.end(), greater<>());
+        grade = countSort(grade);
 
         //fiind sortate descrescator, daca primul element e 0 si suntem inca in functie, atunci toate sunt 0
         if (grade[0] == 0) {
@@ -722,6 +750,8 @@ void Disjoint::citireDisjoint(const int &multimi, const int &operatii, istream &
     }
 }
 
+/* Disjoint */
+
 Disjoint::Disjoint(int numarMultimi, int numarOperatii) : numarOperatii(numarOperatii), numarMultimi(numarMultimi) {}
 
 void Disjoint::initializare() {
@@ -762,6 +792,7 @@ void Disjoint::reuneste(int nod1, int nod2) {
     }
 }
 
+/* Roy-Floyd */
 
 vector<vector<long long>> Graf::royFloyd(vector<vector<long long>> &distante) {
     // Complexitate -> O(n^3)
@@ -851,6 +882,111 @@ pair<int, int> Graf::maximVector(vector<int> vector) {
     return {valoareMaxima, pozitie};
 }
 
+/* Edmonds-Karp */
+
+/*
+bool Graf::bfsEdmondsKarp(const int &nodStart, const int &nodFinal, vector<int> &tati, vector<vector<int>> capacitate, vector<vector<int>> flux) {
+
+    std::fill(std::begin(tati), std::begin(tati)+noduri+1, 0);
+
+    vector<bool> vizitate;
+    vizitate.resize(maxim);
+    std::fill(std::begin(vizitate), std::begin(vizitate)+maxim, false);
+
+    queue<int> queueBfs;
+
+    queueBfs.push(nodStart);
+    vizitate[nodStart] = true;
+
+    while(!queueBfs.empty())
+    {
+        int nodCurent = queueBfs.front();
+        for(int i = 0; i < listaAdiacentaCuCosturi[nodCurent].size(); i++)
+        {
+            int nodVecin = listaAdiacentaCuCosturi[nodCurent][i].first;
+
+            //vecinul nu a fost vizitat si inca ne putem duce pe drumul nodCurent -> nodVecin
+            if(!vizitate[nodVecin] && (capacitate[nodCurent][nodVecin] - flux[nodCurent][nodVecin] > 0)) {
+                vizitate[nodVecin] = true;
+                tati[nodVecin] = nodCurent;
+                queueBfs.push(nodVecin);
+
+                if (nodVecin == nodFinal) {
+                    return true;
+                }
+            }
+        }
+        queueBfs.pop();
+    }
+    return false;
+}
+
+int Graf::EdmondsKarp(int start, int final) {
+    int fluxMaxim = 0;
+
+    vector<int> vectorTati;
+    vectorTati.resize(noduri + 1);
+    std::fill(std::begin(vectorTati), std::begin(vectorTati)+noduri+1, 0);
+
+    // Cat poate sa duca pe o muchie
+    vector<vector<int>> capacitati(noduri + 1, vector<int>(noduri + 1));
+
+    // Cat a dus pe o muchie intr-un drum anterior
+    vector<vector<int>> flux(noduri + 1, vector<int>(noduri + 1));
+
+    for(int nod = 1; nod <= noduri; nod++){
+        for(auto vecinSiCapacitate : listaAdiacentaCuCosturi[nod]){
+            int vecin = vecinSiCapacitate.first;
+            int capacitate = vecinSiCapacitate.second;
+
+            capacitati[nod][vecin] = capacitate;
+        }
+    }
+
+    // initial, pe nicio muchie nu s-a dus nimic -> matricea de flux este plina cu 0-uri
+    for(int i = 0; i <= noduri; i++){
+        for(int j = 0; j <= noduri; j++){
+            flux[i][j] = 0;
+        }
+    }
+
+    // mai putem determina un drum in Gf
+    while(bfsEdmondsKarp(start, final, vectorTati, capacitati, flux)){
+        int nodCurent = final, fluxMinimDrum = infinit;
+
+        // parcurgem vectorul de tati ca sa gasim drumul
+        while(nodCurent != start){
+            int tataNodCurent = vectorTati[nodCurent];
+
+//            if(capacitati[tataNodCurent][nodCurent] < fluxMinimDrum){
+//                fluxMinimDrum = capacitati[tataNodCurent][nodCurent];
+//            }
+
+            fluxMinimDrum = min(fluxMinimDrum, capacitati[tataNodCurent][nodCurent] - flux[tataNodCurent][nodCurent]);
+
+            nodCurent = tataNodCurent;
+        }
+
+        fluxMaxim += fluxMinimDrum;
+
+        nodCurent = final;
+
+        while(nodCurent != start){
+            int tataNodCurent = vectorTati[nodCurent];
+
+            flux[tataNodCurent][nodCurent] += fluxMinimDrum;
+
+            flux[nodCurent][tataNodCurent] -= fluxMinimDrum;
+
+            nodCurent = tataNodCurent;
+        }
+    }
+
+    return fluxMaxim;
+
+}
+
+*/
 
 /* Rezolvari InfoArena si LeetCode */
 
@@ -871,7 +1007,7 @@ void rezolvareDFS(){
         in >> extremitateInitiala >> extremitateFinala;
 
         /* citire DFS -> pentru graf neorientat */
-        mygraf.construiesteGrafNeorientat(extremitateInitiala, extremitateFinala);
+        mygraf.pushListaAdiacentaGrafNeorientat(extremitateInitiala, extremitateFinala);
 
     }
 
@@ -902,7 +1038,7 @@ void rezolvareBFS(){
         in >> extremitateInitiala >> extremitateFinala;
 
         /* citire BFS -> pentru graf orientat */
-        mygraf.construiesteGrafOrientat(extremitateInitiala, extremitateFinala);
+        mygraf.pushListaAdiacentaGrafOrientat(extremitateInitiala, extremitateFinala);
     }
 
     /* apel BFS */
@@ -933,7 +1069,7 @@ void rezolvareBiconex(){
         in >> extremitateInitiala >> extremitateFinala;
 
         /* citire Componente Biconexe -> pentru graf neorientat */
-        mygraf.construiesteGrafNeorientat(extremitateInitiala, extremitateFinala);
+        mygraf.pushListaAdiacentaGrafNeorientat(extremitateInitiala, extremitateFinala);
 
     }
 
@@ -973,7 +1109,7 @@ void rezolvareCTC(){
         in >> extremitateInitiala >> extremitateFinala;
 
         /* citire Componente Tare Conexe -> pentru graf orientat */
-        mygraf.construiesteGrafOrientat(extremitateInitiala, extremitateFinala);
+        mygraf.pushListaAdiacentaGrafOrientat(extremitateInitiala, extremitateFinala);
 
     }
 
@@ -1081,7 +1217,7 @@ void rezolvareSortareTopologica(){
         in >> extremitateInitiala >> extremitateFinala;
 
         /* citire Sortare Topologica -> pentru graf orientat */
-        mygraf.construiesteGradeInterioare(extremitateInitiala, extremitateFinala, gradeInterioare);
+        mygraf.pushListaAdiacentaCuGradeInterioare(extremitateInitiala, extremitateFinala, gradeInterioare);
 
     }
 
@@ -1116,7 +1252,7 @@ void rezolvareAPM(){
         int costMuchie;
         in >> costMuchie;
 
-        mygraf.construiesteCuCosturiNeorientate(extremitateInitiala, extremitateFinala, costMuchie);
+        mygraf.pushListaAdiacentaCuCosturiNeorientate(extremitateInitiala, extremitateFinala, costMuchie);
 
     }
 
@@ -1162,7 +1298,7 @@ void rezolvareDijkstra(){
         int costMuchie;
         in >> costMuchie;
 
-        mygraf.construiesteCuCosturiOrientate(extremitateInitiala, extremitateFinala, costMuchie);
+        mygraf.pushListaAdiacentaCuCosturiOrientate(extremitateInitiala, extremitateFinala, costMuchie);
 
     }
 
@@ -1231,7 +1367,7 @@ void rezolvareBellmanFord(){
         int costMuchie;
         in >> costMuchie;
 
-        mygraf.construiesteCuCosturiOrientate(extremitateInitiala, extremitateFinala, costMuchie);
+        mygraf.pushListaAdiacentaCuCosturiOrientate(extremitateInitiala, extremitateFinala, costMuchie);
 
     }
 
@@ -1299,7 +1435,7 @@ void rezolvareDarb(){
     for(int i = 0; i <= noduri-1; i++){
         in >> extremitateInitiala >> extremitateFinala;
 
-        mygraf.construiesteGrafNeorientat(extremitateInitiala, extremitateFinala);
+        mygraf.pushListaAdiacentaGrafNeorientat(extremitateInitiala, extremitateFinala);
     }
 
     out << mygraf.diametruArbore();
@@ -1307,6 +1443,37 @@ void rezolvareDarb(){
     in.close();
     out.close();
 }
+
+/*
+void rezolvareEdmondsKarp(){
+    ifstream in("maxflow.in");
+    ofstream out("maxflow.out");
+
+    int noduri, muchii, capacitate, extremitateInitiala, extremitateFinala, start, final;
+
+    in >> noduri >> muchii;
+
+    //daca citim nodurile de start si final
+    //in >> start >> final;
+
+    Graf mygraf(noduri, muchii);
+
+    for(int i = 0; i < muchii; i++){
+        in >> extremitateInitiala >> extremitateFinala >> capacitate;
+
+        mygraf.pushListaAdiacentaCuCosturiOrientate(extremitateInitiala, extremitateFinala, capacitate);
+    }
+
+    //daca nu citim si nodurile de start si final
+    start = 1;
+    final = noduri;
+
+    out << mygraf.EdmondsKarp(start, final);
+
+    in.close();
+    out.close();
+}
+*/
 
 int main() {
 
@@ -1347,7 +1514,10 @@ int main() {
 //    rezolvareFloydWarshall();
 
     /* apel Diametrul unui arbore */
-    rezolvareDarb();
+//    rezolvareDarb();
+
+    /* apel Edmonds-Karp */
+//    rezolvareEdmondsKarp();
 
 //    cout << infinit;
 
