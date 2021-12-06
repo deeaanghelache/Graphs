@@ -110,7 +110,7 @@ void Graf::pushListaAdiacentaCuCosturiNeorientate(const int &start, const int &f
 
 /* DFS - Parcurgerea in adancime */
 
-// Complexitate DFS = O(m + n)
+// Complexitate DFS -> O(m + n)
 
 int Graf::numaraConexe() {
     vector<bool> vizitate;
@@ -147,7 +147,7 @@ void Graf::dfs(int nodCurent, vector<bool> &vizitate) {
 
 /* BFS - Parcurgerea in latime */
 
-// Complexitate BFS = O(m + n)
+// Complexitate BFS -> O(m + n)
 
 void Graf::afisareDistante(vector<int> distante, std::ostream &out){
     for(int i = 1; i <= noduri; i++)
@@ -191,6 +191,8 @@ vector<int> Graf::bfs(int nodStart) {
 
 /* Sortare topologica */
 
+// Complexitate -> O(m + n)
+
 vector<int> Graf::sortareTopologica(vector<int> &gradeInterioare) {
     vector<int> noduriSortateTopologic;
 
@@ -224,7 +226,7 @@ vector<int> Graf::sortareTopologica(vector<int> &gradeInterioare) {
 /* Havel-Hakimi */
 
 // Complexitate Havel-Hakimi = O(n^2 * log n) <- cu sort-ul din STL
-//                           = O((n+max) * n) <- cu CountSort
+//                           = O((n+max) * n) = O(n^2) <- cu CountSort
 
 
 vector<int> countSort(vector<int> vectorParametru){
@@ -303,6 +305,8 @@ void havelHakimi(vector<int> grade, std::ostream &out){
 
 /* Componente Biconexe */
 
+// Complexitate -> O(m + n)
+
 vector<vector<int>> Graf::componenteBiconexe(){
     //vectori pentru Componente Biconexe
     vector<int> adancimeNod;
@@ -370,6 +374,8 @@ void Graf::componenteBiconexeDfs(int nodCurent, int adancime, stack<int>& mystac
 }
 
 /* Componente Tare Conexe */
+
+// Complexitate -> O(m + n)
 
 vector<vector<int>> Graf::componenteTareConexe() {
     //vectori pentru Componente Tare Conexe
@@ -451,7 +457,11 @@ void Graf::algoritmComponenteTareConexe(int nodCurent, int &pozitie, stack<int> 
     }
 }
 
-/* Muchii Critice */
+/* Muchii Critice
+
+    * Complexitate -> O(m + n)
+
+*/
 
 void Graf::gasireMuchiiCritice(int nodCurent, int &adancime, vector<int> &adancimeParcurgere, vector<int> &adancimeMinimaParcurgere, vector<vector<int>> &muchiiCritice, vector<int> &parinti){
     adancimeMinimaParcurgere[nodCurent] = adancime;
@@ -516,7 +526,29 @@ vector<vector<int>> Graf::criticalConnections(int n, vector<vector<int>>& connec
     // cout << "]";
 }
 
-/* Algoritmul lui Dijkstra */
+/* Algoritmul lui Dijkstra - Drumuri Minime In Graf Ponderat Cu Ponderi Pozitive
+
+    * Complexitate = O(n^2) <- cu vector
+                   = O(m * log n) <- cu heap (priority-queue)
+                   = O(n * log n + m) <- cu heap Fibonacci
+
+    * Idee: retinem intr-un min heap distantele minime
+
+    * Constrangeri: muchiile trebuie sa aiba costuri pozitive!
+
+    * Algoritm:
+        - initial, in minHeap avem distanta 0 si nodul de start
+        - cat timp heap-ul nu este gol, luam front-ul
+        - daca front-ul a fost vizitat, continue, nu ne mai intereseaza (nu vrem sa calculam de
+        doua ori acelasi lucru pentru el)
+        - daca front-ul nu a fost vizitat:
+                -> il vizitam
+                -> ii parcurgem vecinii
+                -> daca gasim un vecin nevizitat caruia ii actualizam distanta (distanta[front] + costul
+                muchiei de la front la vecin < distanta[vecin]), ii dam push in heap
+                -> heap-ul se rearanjeaza, astfel incat, in varf sa fie mereu minimul
+        - returnam vectorul de distante
+*/
 
 vector<int> Graf::Dijkstra(int nodStart) {
 
@@ -579,7 +611,39 @@ vector<int> Graf::Dijkstra(int nodStart) {
 
 }
 
-/* APM */
+/* APM - Arbori Partiali de Cost Minim
+
+ Complexitate
+ * Prim -> O(n^2) <- cu vector de vizitate
+        -> O(m * log n) <- cu heap (min-heap de noduri)
+ * Kruskal -> O(m * log n + n^2) <- cu vector de reprezentanti
+           -> O(m * log m) = O(m * log n) <- structuri pentru multimi disjuncte (union/find)
+
+ * PRIM:
+    * Idee: la un pas se selecteaza o muchie de cost minim de la un varf care a fost deja adaugat
+    in arbore la unul neadaugat (avem un singur arbore la care alipim noduri)
+
+    * Algoritm:
+        - pornim dintr-un varf de start (il punem in heap ca tuplu {0, start}, unde 0 este distanta[nodStart])
+        - adaugam pe rand cate un varf in arborele deja construit (cu proprietatea ca muchia dintre
+        varful care este in graf si varful pe care il adaugam in graf sa fie minima -> cost minim)
+        - aceeasi ideea cu min heap ca la Dijkstra
+        - cat timp heap-ul nu este gol, extragem minimul
+        - daca minimul a fost vizitat -> continue (nu vrem sa adaugam de doua ori distanta lui in costul APM-ului)
+        - daca minimul nu a fost vizitat:
+                -> adaugam la costul APM-ului distanta lui
+                -> il vizitam
+                -> ii parcurgem vecinii si gasim un vecin nevizitat (nu e in arbore) pe care il putem
+                adauga in arbore (are costul muchiei curente mai mic decat distanta anterioare),
+                il adaugam in heap, actualizam distanta si ii retinem tatal in vectorul de tati
+        - parcurgem vectorul de tati si retinem intr-un vector nodurile care nu au tatal = 0 (singurul nod
+        cu tatal = 0 este radacina) -> nodurile astea sunt nodurile din APM
+        - returnam vectorul de noduri si costul minim al APM-ului (calculat in while)
+
+ * KRUSKAL:
+    * Idee: avem mai multi arbori si ii unim formand paduri
+
+*/
 
 pair<vector<pair<int, int>>, int> Graf::ApmPrim(int nodStart) {
     // initializare Prim
@@ -659,7 +723,29 @@ pair<vector<pair<int, int>>, int> Graf::ApmPrim(int nodStart) {
 
 }
 
-/* Algoritm Bellman-Ford */
+/* Algoritm Bellman-Ford - drumuri minime de la start la celelalte noduri
+
+    * Complexitate -> O(m * n)
+
+    * Constrangeri:
+        - arcele pot avea costuri negative si pozitive
+        - daca exista circuite negative le detecteaza!
+
+    * Idee: la un pas relaxam toate muchiile
+        - pentru OPTIMIZARE este suficient ca la un pas sa relaxam arcele din varfurile
+        modificate anterior (le retinem intr-o coada)
+
+    * Algoritm:
+        - initial, avem doar nodul de start in coada
+        - cat timp coada nu e goala, verificam daca am parcurs nodul curent de mai mult de n-1 ori: daca da,
+        break, pentru ca, daca actualizam la infinit distanta unui varf, atunci el se afla intr-un circuit negativ
+        - daca nu am iesit din functie, scoatem nodul curent din coada si il vizitam (vizitam un nod doar
+        atunci cand il gasim in front-ul cozii)
+        - ii parcurgem vecinii si, daca putem sa actualizam distanta vecinului curent (distanta[front] + costul
+        muchiei (front, vecin) < distante[vecin]), o actualizam
+        - daca vecinul pe care tocmai l-am actualizat nu este in coada, il punem si pe el
+        - afisam distantele
+*/
 
 void Graf::BellmanFord(ofstream &out, int nodStart) {
     // initializare Bellman-Ford
@@ -723,7 +809,37 @@ void Graf::BellmanFord(ofstream &out, int nodStart) {
     }
 }
 
-/* Paduri de multimi disjuncte */
+/* Disjoint - Paduri de Multimi Disjuncte
+
+    * Complexitate: O(m * log n)
+        - Initializare -> O(1), dar se face de n ori -> n * O(1) = O(n)
+        - Reprezentant -> O(log n), liniar in inaltimea arborelui, dar se apeleaza de 2*m ori -> O(m * log n)
+        - Reuneste -> O(1), dupa determinarea reprezentantilor celor 2 noduri (pentru fiecare nod este O(log n)), dar se apeleaza pentru n-1 noduri -> O(n * log n)
+
+    * Algoritm:
+        - Initializare:
+                -> initial, fiecare nod formeaza o multime (n noduri izolate -> n multimi de un element)
+                -> tatal fiecarui nod este 0 (fiecare nod este radacina in arborele sau)
+                -> inaltimea fiecarui nod este 0 (fiecare nod formeaza un arbore cu inaltimea 0)
+        - Reprezentant (liniar in inaltimea arborelui):
+                -> pentru un nod dat ca parametru, functia returneaza nodul-radacina al arborelui
+                din care face parte nodul curent
+                -> compresia de cale (optimizarea functiei): toate nodurile de pe lantul de la nodul
+                curent la radacina isi vor seta tatal = radacina arborelui (apel recursiv al functiei
+                Reprezentant pentru tatal fiecarui nod de pe drum)
+                !! OBSERVATIE: In urma compresiei de cale, NU actualizam inaltimea arborelui!
+        - Reuneste:
+                -> unim 2 noduri din arbori diferiti
+                -> calculam reprezentantii pentru cele 2 noduri pe care vrem sa le unim (radacinile
+                lor)
+                -> daca avem 2 arbori cu inaltimi diferite, radacina arborelui cu inaltimea mai mica
+                va deveni fiu al radacinii arborelui cu inaltimea mai mare (Nu actualizam inaltimea
+                arborelui rezultat)
+                -> daca cei 2 arbori au aceeasi inaltime, radacina unuia va deveni fiu al radacinii celui
+                de-al doilea SI crestem si inaltimea arborelui rezultat cu 1
+                !! EXEMPLU: daca avem 2 arbori cu inaltimea = 1, dupa ce ii unim, avem un arbore cu inaltimea = 2
+
+ */
 
 void Disjoint::citireDisjoint(const int &multimi, const int &operatii, istream &in, ostream &out) {
     int operatie, x, y;
@@ -750,8 +866,6 @@ void Disjoint::citireDisjoint(const int &multimi, const int &operatii, istream &
     }
 }
 
-/* Disjoint */
-
 Disjoint::Disjoint(int numarMultimi, int numarOperatii) : numarOperatii(numarOperatii), numarMultimi(numarMultimi) {}
 
 void Disjoint::initializare() {
@@ -768,7 +882,7 @@ int Disjoint::reprezentant(int nod) {
         return nod;
     }
 
-    //daca nu, apelam recursiv functia pana cand tatal nodului curent "va deveni" radacina arborelui
+    //daca nu, apelam recursiv functia pana cand tatal nodului curent "va deveni" radacina arborelui -> compresie de cale
     vectorTata[nod] = reprezentant(vectorTata[nod]);
     return vectorTata[nod];
 }
@@ -792,21 +906,26 @@ void Disjoint::reuneste(int nod1, int nod2) {
     }
 }
 
-/* Roy-Floyd */
+/* Roy-Floyd -> Distantele Dintre Oricare 2 Perechi De Noduri
+
+    * Complexitate -> O(n^3)
+
+    * Vrem sa determinam distanta minima de la un nod x la un nod y, pentru
+     oricare x si y noduri in graf
+
+    * Idee: distante[x][y] = min{distante[x][y], distante[x][k] + distante[k][y]}
+
+    * Algoritm:
+     - pentru fiecare nod (varf intermediar) parcurgem matricea distantelor (for-ul dupa k)
+     - daca gasim un drum de la x la y care trece prin k, de lungime
+     mai mica decat lungimea drumului anterior de la x la y, actualizam
+     distante[x][y]
+
+    * Observatie: Matricea distantelor minime pentru graful neorientat este simetrica!
+
+*/
 
 vector<vector<long long>> Graf::royFloyd(vector<vector<long long>> &distante) {
-    // Complexitate -> O(n^3)
-
-    // Vrem sa determinam distanta minima de la un nod x la un nod y, pentru
-    // oricare x si y noduri in graf
-
-    // Idee: distante[x][y] = min{distante[x][y], distante[x][k] + distante[k][y]}
-
-    // Algoritm:
-    // - pentru fiecare nod (varf intermediar) parcurgem matricea distantelor (for-ul dupa k)
-    // - daca gasim un drum de la x la y care trece prin k, de lungime
-    // mai mica decat lungimea drumului anterior de la x la y, actualizam
-    // distante[x][y]
 
     for(int k = 1; k <= noduri; k++){
         for(int i = 1; i <= noduri; i++){
@@ -837,19 +956,22 @@ void Graf::afisareMatrice(vector<vector<long long>> matrice, ofstream &out) {
     }
 }
 
-/* Diametrul unui arbore */
+/* Diametrul unui arbore
+
+    * Diametrul unui arbore reprezintă lungimea drumului (ca numar de noduri) intre cele mai indepartate două frunze
+
+    * Complexitate -> O(n), facem de doua ori BFS, deci avem complexitate O(2 * (n+m)), dar fiind arbore, m = n-1 -> O(4*n) = O(n)
+
+    * Algoritm:
+            -> facem bfs dintr-un nod oarecare
+            -> intrucat bfs-ul ne da distantele de la nodul pentru care a fost apelat, la toate nodurile, retinem care este nodul cu distanta maxima
+     din vectorul de distante (cu functia maximVector)
+            -> apelam bfs pentru nodul cu distanta maxima
+            -> diametrul arborelui va fi egal cu distanta maxima dupa al doilea bfs + 1 (nodul de start are distanta 0 in bfs -> numara diametru-1 noduri)
+
+*/
 
 int Graf::diametruArbore() {
-
-    // Complexitate -> O(n)
-    // Diametrul unui arbore  reprezintă lungimea drumului (ca numar de noduri) intre cele mai indepartate două frunze
-
-    // Idee:
-    // -> facem bfs dintr-un nod oarecare
-    // -> intrucat bfs-ul ne da distantele de la nodul pentru care a fost apelat, la toate nodurile, retinem care este nodul cu distanta maxima
-    // din vectorul de distante (cu functia maximVector)
-    // -> apelam bfs pentru nodul cu distanta maxima
-    // -> diametrul arborelui va fi egal cu distanta maxima dupa al doilea bfs + 1 (nodul de start are distanta 0 in bfs -> numara diametru-1 noduri)
 
     vector<int> distante;
     distante = bfs();
@@ -882,7 +1004,26 @@ pair<int, int> Graf::maximVector(vector<int> vector) {
     return {valoareMaxima, pozitie};
 }
 
-/* Edmonds-Karp */
+/* Edmonds-Karp - Flux Maxim
+
+    * Complexitate: O(n * m^2)
+
+    * Algoritm:
+        - folosim 2 matrice n x n:
+                -> capacitate[i][j]: reprezinta cantitatea maxima care se poate trimite pe muchia (i, j)
+                -> flux[i][j]: reprezinta cantitatea care a fost trimisa pana la un moment dat pe muchia (i, j)
+        - initial, matricea cu capacitati este initializata cu costurile muchiilor
+        - initial, matricea cu fluxuri este initializata cu 0 (nu am trimis nimic pe nicio muchie)
+        - cat timp cautarea in latime(BFS) ne gaseste un drum de la start la final in graf (putem merge pe
+        muchia (i, j) doar daca cantitate[i][j] - flux[i][j] > 0)
+        - calculam costul minim al muchiilor din drumul gasit
+        - il adaugam la variabila flux maxim
+        - pentru fiecare muchie din drumul gasit, reactualizam fluxul:
+                -> daca muchia (i, j) apartine drumului curent, flux[i][j] += fluxMinim (cazul cu muchie directa)
+                -> daca muchia (j, i) apartine drumului curent, flux[j][i] -= fluxMinim (cazul cu muchie intoarsa)
+        - daca nu mai gasim drumuri cu BFS, returnam variabila fluxMaxim
+
+*/
 
 /*
 bool Graf::bfsEdmondsKarp(const int &nodStart, const int &nodFinal, vector<int> &tati, vector<vector<int>> capacitate, vector<vector<int>> flux) {
