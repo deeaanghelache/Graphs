@@ -113,10 +113,8 @@ void Graf::pushListaAdiacentaCuCosturiNeorientate(const int &start, const int &f
 // Complexitate DFS -> O(m + n)
 
 int Graf::numaraConexe() {
-    vector<bool> vizitate;
-
-    vizitate.resize(maxim);
-    std::fill(std::begin(vizitate), std::begin(vizitate)+maxim, false);
+    vector<bool> vizitate(noduri + 1, false);
+    //std::fill(std::begin(vizitate), std::begin(vizitate)+maxim, false);
 
     int componenteConexe = 0;
 
@@ -156,14 +154,8 @@ void Graf::afisareDistante(vector<int> distante, std::ostream &out){
 
 vector<int> Graf::bfs(int nodStart) {
 
-    vector<bool> vizitate;
-    vector<int> distante;
-
-    distante.resize(maxim);
-    vizitate.resize(maxim);
-
-    std::fill(std::begin(vizitate), std::begin(vizitate)+maxim, false);
-    std::fill(std::begin(distante), std::begin(distante)+maxim, -1);
+    vector<bool> vizitate(noduri + 1, false);
+    vector<int> distante(noduri + 1, -1);
 
     queue<int> queueBfs;
 
@@ -230,9 +222,9 @@ vector<int> Graf::sortareTopologica(vector<int> &gradeInterioare) {
 
 
 vector<int> countSort(vector<int> vectorParametru){
-    vector<int> frecventa;
-    frecventa.resize(maxim);
-    std::fill(std::begin(frecventa), std::begin(frecventa)+maxim, 0);
+    vector<int> frecventa(maxim, 0);
+//    frecventa.resize(maxim);
+//    std::fill(std::begin(frecventa), std::begin(frecventa)+maxim, 0);
 
     int elementMaxim = vectorParametru[0];
     for(auto element : vectorParametru){
@@ -309,18 +301,10 @@ void havelHakimi(vector<int> grade, std::ostream &out){
 
 vector<vector<int>> Graf::componenteBiconexe(){
     //vectori pentru Componente Biconexe
-    vector<int> adancimeNod;
-    vector<int> nivelMinimNod;
-    vector<bool> vizitate;
+    vector<int> adancimeNod(noduri + 1, -1);
+    vector<int> nivelMinimNod(noduri + 1, -1);
+    vector<bool> vizitate(noduri + 1, false);
     vector<vector<int>> componenteBiconexe;
-
-    vizitate.resize(maxim);
-    adancimeNod.resize(maxim);
-    nivelMinimNod.resize(maxim);
-
-    std::fill(std::begin(adancimeNod), std::begin(adancimeNod)+maxim, -1);
-    std::fill(std::begin(nivelMinimNod), std::begin(nivelMinimNod)+maxim, -1);
-    std::fill(std::begin(vizitate), std::begin(vizitate)+maxim, false);
 
     stack<int> mystack;
 
@@ -379,18 +363,10 @@ void Graf::componenteBiconexeDfs(int nodCurent, int adancime, stack<int>& mystac
 
 vector<vector<int>> Graf::componenteTareConexe() {
     //vectori pentru Componente Tare Conexe
-    vector<int> pozitiiParcurgere;
-    vector<int> pozitiiMinimeParcurgere;
-    vector<bool> elemPeStiva; // are valoare true daca elementul este in stiva si false altfel
+    vector<int> pozitiiParcurgere(noduri + 1, -1);
+    vector<int> pozitiiMinimeParcurgere(noduri + 1, -1);
+    vector<bool> elemPeStiva(noduri + 1, false); // are valoare true daca elementul este in stiva si false altfel (la inceput, niciun element nu e pe stiva)
     vector<vector<int>> listaComponenteTareConexe;
-
-    pozitiiMinimeParcurgere.resize(maxim);
-    pozitiiParcurgere.resize(maxim);
-    elemPeStiva.resize(maxim);
-
-    std::fill(std::begin(pozitiiParcurgere), std::begin(pozitiiParcurgere)+maxim, -1);
-    std::fill(std::begin(pozitiiMinimeParcurgere), std::begin(pozitiiMinimeParcurgere)+maxim, -1);
-    std::fill(std::begin(elemPeStiva), std::begin(elemPeStiva)+maxim, false); // la inceput, niciun element nu e pe stiva
 
     stack<int> mystack;
 
@@ -496,23 +472,15 @@ void Graf::gasireMuchiiCritice(int nodCurent, int &adancime, vector<int> &adanci
 
 vector<vector<int>> Graf::criticalConnections(int n, vector<vector<int>>& connections) {
     //vectori pentru Muchii Critice
-    vector<int> adancimeParcurgere;
-    vector<int> adancimeMinimaParcurgere;
+    vector<int> adancimeParcurgere(noduri + 1, -1);
+    vector<int> adancimeMinimaParcurgere(noduri + 1, -1);
     vector<vector<int>> muchiiCritice;
-    vector<int> parinti;
+    vector<int> parinti(noduri + 1, 0);
 
     for(int i = 0; i < connections.size(); i++){
         listaAdiacenta[connections[i][1]].push_back(connections[i][0]);
         listaAdiacenta[connections[i][0]].push_back(connections[i][1]);
     }
-
-    adancimeParcurgere.resize(maxim);
-    adancimeMinimaParcurgere.resize(maxim);
-    parinti.resize(maxim);
-
-    std::fill(std::begin(adancimeParcurgere), std::begin(adancimeParcurgere)+maxim, -1);
-    std::fill(std::begin(adancimeMinimaParcurgere), std::begin(adancimeMinimaParcurgere)+maxim, -1);
-    std::fill(std::begin(parinti), std::begin(parinti)+maxim, 0);
 
     int radacina = 0, adancimeRadacina = 0;
     gasireMuchiiCritice(radacina, adancimeRadacina, adancimeParcurgere, adancimeMinimaParcurgere, muchiiCritice, parinti);
@@ -553,14 +521,8 @@ vector<vector<int>> Graf::criticalConnections(int n, vector<vector<int>>& connec
 vector<int> Graf::Dijkstra(int nodStart) {
 
     // initializare Dijkstra
-    vector<int> distante;
-    vector<bool> vizitate;
-
-    distante.resize(noduri + 1);
-    vizitate.resize(noduri + 1);
-
-    fill(std::begin(distante), std::begin(distante) + noduri + 1, infinit);
-    fill(std::begin(vizitate), std::begin(vizitate) + noduri + 1, false);
+    vector<int> distante(noduri + 1, infinit);
+    vector<bool> vizitate(noduri + 1, false);
 
     // min-heap
     priority_queue<pair<int, int>, std::vector<pair<int, int>>, std::greater<>> minHeap;
@@ -652,18 +614,10 @@ pair<vector<pair<int, int>>, int> Graf::ApmPrim(int nodStart) {
     priority_queue<pair<int, int>, std::vector<pair<int, int>>, std::greater<>> minHeap;
 
     // vectori pentru Prim
-    vector<int> distante;
-    vector<bool> vizitate;
+    vector<int> distante(noduri + 1, infinit);
+    vector<bool> vizitate(noduri + 1, false);
     vector<pair<int, int>> muchiiApm;
-    vector<int> vectorTati;
-
-    distante.resize(maxim);
-    vizitate.resize(maxim);
-    vectorTati.resize(maxim);
-
-    fill(std::begin(distante), std::begin(distante)+maxim, infinit);
-    fill(std::begin(vizitate), std::begin(vizitate)+maxim, false);
-    fill(std::begin(vectorTati), std::begin(vectorTati)+maxim, 0);
+    vector<int> vectorTati(noduri + 1, 0);
 
     distante[nodStart] = 0;
 
@@ -749,17 +703,9 @@ pair<vector<pair<int, int>>, int> Graf::ApmPrim(int nodStart) {
 
 void Graf::BellmanFord(ofstream &out, int nodStart) {
     // initializare Bellman-Ford
-    vector<int> elemInCoada;
-    vector<int> numarParcurgeri;
-    vector<int> distante;
-
-    distante.resize(maxim);
-    elemInCoada.resize(maxim);
-    numarParcurgeri.resize(maxim);
-
-    fill(std::begin(distante), std::begin(distante)+maxim, infinit);
-    fill(std::begin(elemInCoada), std::begin(elemInCoada)+maxim, false);
-    fill(std::begin(numarParcurgeri), std::begin(numarParcurgeri)+maxim,0);
+    vector<int> elemInCoada(noduri + 1, false);
+    vector<int> numarParcurgeri(noduri + 1, 0);
+    vector<int> distante(noduri + 1, infinit);
 
     queue<int> myqueue;
 
@@ -869,11 +815,8 @@ void Disjoint::citireDisjoint(const int &multimi, const int &operatii, istream &
 Disjoint::Disjoint(int numarMultimi, int numarOperatii) : numarOperatii(numarOperatii), numarMultimi(numarMultimi) {}
 
 void Disjoint::initializare() {
-    vectorTata.resize(maximDisjoint);
-    inaltimeArbore.resize(maximDisjoint);
-
-    fill(std::begin(vectorTata), std::begin(vectorTata)+maximDisjoint, 0);
-    fill(std::begin(inaltimeArbore), std::begin(inaltimeArbore)+maximDisjoint, 0);
+    vectorTata.resize(maximDisjoint, 0);
+    inaltimeArbore.resize(maximDisjoint, 0);
 }
 
 int Disjoint::reprezentant(int nod) {
@@ -1028,11 +971,9 @@ pair<int, int> Graf::maximVector(vector<int> vector) {
 /*
 bool Graf::bfsEdmondsKarp(const int &nodStart, const int &nodFinal, vector<int> &tati, vector<vector<int>> capacitate, vector<vector<int>> flux) {
 
-    std::fill(std::begin(tati), std::begin(tati)+noduri+1, 0);
+    std::fill(std::begin(tati), std::begin(tati) + noduri + 1, 0);
 
-    vector<bool> vizitate;
-    vizitate.resize(maxim);
-    std::fill(std::begin(vizitate), std::begin(vizitate)+maxim, false);
+    vector<bool> vizitate(noduri + 1, false);
 
     queue<int> queueBfs;
 
@@ -1065,9 +1006,7 @@ bool Graf::bfsEdmondsKarp(const int &nodStart, const int &nodFinal, vector<int> 
 int Graf::EdmondsKarp(int start, int final) {
     int fluxMaxim = 0;
 
-    vector<int> vectorTati;
-    vectorTati.resize(noduri + 1);
-    std::fill(std::begin(vectorTati), std::begin(vectorTati)+noduri+1, 0);
+    vector<int> vectorTati(noduri + 1, 0);
 
     // Cat poate sa duca pe o muchie
     vector<vector<int>> capacitati(noduri + 1, vector<int>(noduri + 1));
@@ -1341,15 +1280,13 @@ void rezolvareSortareTopologica(){
     ofstream out("sortaret.out");
 
     // vector care retine gradele interioare ale nodurilor din graf
-    vector<int> gradeInterioare;
-    gradeInterioare.resize(maxim);
-    std::fill(std::begin(gradeInterioare), std::begin(gradeInterioare)+maxim, 0);
 
     vector<int> noduriSortTopo;
 
     int noduri, muchii, extremitateInitiala, extremitateFinala;
 
     in >> noduri >> muchii;
+    vector<int> gradeInterioare(noduri + 1, 0);
 
     Graf mygraf(noduri, muchii);
 
