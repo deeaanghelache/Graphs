@@ -9,22 +9,21 @@
 
 using namespace std;
 
-//const int maxim = 200001;
-//const int maxim = 100001;
-//const int maxim = 50001;
-const int maxim = 1001;
+const int maximHavel = 1001;
 
 const int infinit = std::numeric_limits<int>::max();
 const int maximDisjoint = 100001;
 
 class Graf{
     int noduri, muchii;
+    bool orientat; // daca e orientat -> true, daca e neorientat -> false
+    bool ponderat; // daca e ponderat -> true, daca e neponderat -> false
 
     //lista de adiacenta
-    vector<int> listaAdiacenta[maxim];
+    vector<vector<int>> listaAdiacenta;
 
     //lista de adiacenta pentru graf ponderat
-    vector<pair<int, int>> listaAdiacentaCuCosturi[maxim];
+    vector<vector<pair<int, int>>> listaAdiacentaCuCosturi;
 
     void dfs(int nodCurent, vector<bool> &vizitate);
     void componenteBiconexeDfs(int nodCurent, int adancime, stack<int>& mystack, vector<int> &adancimeNod, vector<int> &nivelMinimNod, vector<bool> &vizitate, vector<vector<int>> &componenteBiconexe);
@@ -34,17 +33,18 @@ class Graf{
     //bool bfsEdmondsKarp(const int &nodStart, const int &nodFinal, vector<int> &tati, vector<vector<int>> capacitate, vector<vector<int>> flux);
 
 public:
+    //constructori
+    Graf();
+    Graf(int noduri, bool orientat);
+    Graf(int noduri, bool orientat, bool ponderat);
+    Graf(int noduri, int muchii, bool orientat, bool ponderat);
+
     //functii pentru crearea listelor de adiacenta, in functie de tipul grafului (Orientat/Neorientat)
     void pushListaAdiacentaGrafOrientat(const int &start, const int &final);
     void pushListaAdiacentaGrafNeorientat(const int &start, const int &final);
     void pushListaAdiacentaCuGradeInterioare(const int &start, const int &final, vector<int> &gradeInterioare);
     void pushListaAdiacentaCuCosturiOrientate(const int &start, const int &final, const int &cost);
     void pushListaAdiacentaCuCosturiNeorientate(const int &start, const int &final, const int &cost);
-
-    //constructori
-    Graf();
-    Graf(int noduri);
-    Graf(int noduri, int muchii);
 
     //functii
     int numaraConexe();
@@ -53,14 +53,16 @@ public:
     vector<vector<int>> componenteBiconexe();
     vector<vector<int>> componenteTareConexe();
     vector<vector<int>> criticalConnections(int n, vector<vector<int>>& connections);
-    void afisareDistante(vector<int> distante, std::ostream &out);
+    int diametruArbore();
     vector<int> Dijkstra(int nodStart = 1);
     pair<vector<pair<int, int>>, int> ApmPrim(int nodStart = 1);
     void BellmanFord(ofstream &out, int nodStart = 1);
     vector<vector<long long>> royFloyd(vector<vector<long long>> &distante);
-    void afisareMatrice(vector<vector<long long>> matrice, ofstream &out);
-    int diametruArbore();
     //int EdmondsKarp(int start, int final);
+
+    //afisari
+    void afisareMatrice(vector<vector<long long>> matrice, std::ostream &out);
+    void afisareDistante(vector<int> distante, std::ostream &out);
 };
 
 
@@ -81,9 +83,25 @@ public:
 
 Graf::Graf() {}
 
-Graf::Graf(int noduri) : noduri(noduri) {}
+Graf::Graf(int noduri, bool orientat, bool ponderat) : noduri(noduri), orientat(orientat), ponderat(ponderat) {
+    if(ponderat){
+        listaAdiacentaCuCosturi.resize(noduri + 1, vector<pair<int, int>>());
+    }
+    else{
+        listaAdiacenta.resize(noduri + 1, vector<int>());
+    }
+}
 
-Graf::Graf(int noduri, int muchii) : noduri(noduri), muchii(muchii) {}
+Graf::Graf(int noduri, bool orientat) : noduri(noduri), orientat(orientat) {}
+
+Graf::Graf(int noduri, int muchii, bool orientat, bool ponderat) : noduri(noduri), muchii(muchii), orientat(orientat), ponderat(ponderat) {
+    if(ponderat){
+        listaAdiacentaCuCosturi.resize(noduri + 1, vector<pair<int, int>>());
+    }
+    else{
+        listaAdiacenta.resize(noduri + 1, vector<int>());
+    }
+}
 
 void Graf::pushListaAdiacentaGrafNeorientat(const int &start, const int &final) {
     listaAdiacenta[start].push_back(final);
@@ -108,9 +126,21 @@ void Graf::pushListaAdiacentaCuCosturiNeorientate(const int &start, const int &f
     listaAdiacentaCuCosturi[final].emplace_back(start, cost);
 }
 
-/* DFS - Parcurgerea in adancime */
+/* DFS - Parcurgerea in adancime
 
-// Complexitate DFS -> O(m + n)
+    * Complexitate -> O(m + n)
+
+    * Idee:
+        - la fiecare pas, apelam RECURSIV functia dfs pentru PRIMUL vecin gasit
+
+    * Algoritm:
+        - parcurgem toate nodurile
+        - apelam functia de dfs pentru nodurile nevizitate
+        - daca un nod ramane nevizitat in urma apelurilor anterioare,
+        atunci el formeaza o noua componenta conexa
+        - in functia de dfs, apelam recursiv functia pentru primul vecin gasit al nodului curent
+
+*/
 
 int Graf::numaraConexe() {
     vector<bool> vizitate(noduri + 1, false);
@@ -118,7 +148,7 @@ int Graf::numaraConexe() {
 
     int componenteConexe = 0;
 
-    for(int i=1; i<noduri+1; i++)
+    for(int i = 1; i < noduri + 1; i++)
     {
         if(!vizitate[i])
         {
@@ -137,19 +167,31 @@ void Graf::dfs(int nodCurent, vector<bool> &vizitate) {
     {
         if(!vizitate[vecin])
         {
-            vizitate[vecin]=true;
+            vizitate[vecin] = true;
             dfs(vecin, vizitate);
         }
     }
 }
 
-/* BFS - Parcurgerea in latime */
+/* BFS - Parcurgerea in latime
 
-// Complexitate BFS -> O(m + n)
+    * Complexitate -> O(m + n)
+
+    * Idee:
+         - implementare cu coada
+         - la fiecare pas, dam push in coada TUTUROR vecinilor nevizitati ai nodului curent
+
+    * Algoritm:
+         - punem nodul de start in coada
+         - cat timp coada nu e goala, dam push in coada tuturor vecinilor
+         nevizitati ai nodului curent
+         - distanta tuturor vecinilor nodului curent creste cu 1
+
+*/
 
 void Graf::afisareDistante(vector<int> distante, std::ostream &out){
     for(int i = 1; i <= noduri; i++)
-        out<<distante[i]<<" ";
+        out << distante[i] << " ";
 }
 
 vector<int> Graf::bfs(int nodStart) {
@@ -181,9 +223,23 @@ vector<int> Graf::bfs(int nodStart) {
     return distante;
 }
 
-/* Sortare topologica */
+/* Sortare topologica
 
-// Complexitate -> O(m + n)
+    * Complexitate -> O(m + n)
+
+    * Idee:
+         - implementare cu grade interioare + coada
+
+    * Algoritm:
+         - punem in coada toate nodurile cu gradul interior 0
+         - cat timp coada nu e goala, parcurgem vecinii nodului curent
+         si scadem 1 din gradele lor interioare (simulam eliminarea muchiilor de la
+         nodul curent la vecini)
+         - daca in urma scaderii, am gasit un nod al carui grad interior
+         a devenit 0, il adaugam si pe el in coada
+
+*/
+
 
 vector<int> Graf::sortareTopologica(vector<int> &gradeInterioare) {
     vector<int> noduriSortateTopologic;
@@ -215,14 +271,27 @@ vector<int> Graf::sortareTopologica(vector<int> &gradeInterioare) {
     return noduriSortateTopologic;
 }
 
-/* Havel-Hakimi */
+/* Havel-Hakimi
 
-// Complexitate Havel-Hakimi = O(n^2 * log n) <- cu sort-ul din STL
-//                           = O((n+max) * n) = O(n^2) <- cu CountSort
+    * Complexitate -> O(n^2 * log n) <- cu sort-ul din STL
+                   -> O((n+max) * n) = O(n^2) <- cu CountSort
 
+    * Algoritmul lui Havel-Hakimi verifica daca se poate construi
+    un graf neorientat, avand secventa gradelor data
+
+    * Algoritm:
+         - NU se poate daca:
+                -> avem suma gradelor impara
+                -> gasim un grad > noduri
+                -> gasim un grad negativ
+         - intr-un loop infinit, sortam gradele (cu countSort sau sort-ul din STL)
+         - luam cel mai mare grad (notam gr) si il "legam" de urmatoarele
+         gr cele mai mari grade (simulam un numar de gr muchii)
+
+*/
 
 vector<int> countSort(vector<int> vectorParametru){
-    vector<int> frecventa(maxim, 0);
+    vector<int> frecventa(maximHavel, 0);
 //    frecventa.resize(maxim);
 //    std::fill(std::begin(frecventa), std::begin(frecventa)+maxim, 0);
 
@@ -295,9 +364,28 @@ void havelHakimi(vector<int> grade, std::ostream &out){
     }
 }
 
-/* Componente Biconexe */
+/* Componente Biconexe
 
-// Complexitate -> O(m + n)
+    * Complexitate -> O(m + n)
+
+    * Idee:
+        - implementare cu stiva
+
+    * Algoritm:
+        - apelam functia pentru cautare componente biconexe dfs pentru nodul de start
+        - in functia pentru cautare componente biconexe dfs:
+            -> parcurgem vecinii nodului curent
+            -> daca gasim un vecin nevizitat, apelam functia recursiv si pentru vecinul respectiv:
+                - daca are un copil(vecin) care nu se poate duce mai sus de el in
+                arbore, atunci avem o componenta biconexa
+                - dam pop pe stiva pana gasim vecinul curent si salvam rezultatele
+                intr-un vector de componenta biconexa
+                - componenta biconexa gasita o punem intr-un vector care retine toate
+                componentele biconexe din graful curent
+            -> daca gasim un vecin deja vizitat, actualizam nivelul minim al nodului curent
+            (nodul curent se poate duce mai sus in arbore)
+
+*/
 
 vector<vector<int>> Graf::componenteBiconexe(){
     //vectori pentru Componente Biconexe
@@ -357,9 +445,28 @@ void Graf::componenteBiconexeDfs(int nodCurent, int adancime, stack<int>& mystac
     }
 }
 
-/* Componente Tare Conexe */
+/* Componente Tare Conexe
 
-// Complexitate -> O(m + n)
+    * Complexitate -> O(m + n)
+
+    * Idee:
+        - implementare cu stiva
+
+    * Algoritm:
+        - in functia pentru algoritm Componente Tare Conexe:
+            -> parcurgem vecinii nodului curent
+            -> daca gasim un vecin nevizitat, apelam functia recursiv si pentru vecinul respectiv si actualizam
+            pozitia minima a nodului curent (nodul curent se poate duce mai sus in arbore)
+            -> daca gasim un vecin deja vizitat:
+                - daca nu e pe stiva, el a fost gasit in alta componenta tare conexa
+                - daca e pe stiva, actualizam pozitia minima a nodului curent
+            -> daca dupa ce parcurgem vecinii, pozitia initiala de parcurgere a nodului curent este
+            egala cu pozitia sa minima de parcurgere, atunci el este radacina unei componente
+            tare conexe
+            -> dam pop pe stiva pana gasim nodul curent si salvam nodurile gasite
+            intr-o componenta tare conexa
+
+*/
 
 vector<vector<int>> Graf::componenteTareConexe() {
     //vectori pentru Componente Tare Conexe
@@ -436,6 +543,15 @@ void Graf::algoritmComponenteTareConexe(int nodCurent, int &pozitie, stack<int> 
 /* Muchii Critice
 
     * Complexitate -> O(m + n)
+
+    * Algoritm:
+    - pentru un nod curent, parcurgem toti vecinii
+    - daca vecinul este parintele lui, continue
+    - daca vecinul e vizitat, actualizam adancimea minima a nodului curent
+    - daca vecinul e nevizitat:
+        -> apelam functia recursiv si pentru el
+        -> daca vecinul nu se poate duce mai sus de nodul curent in graf,
+        atunci muchia dintre el si nodul curent este critica
 
 */
 
@@ -887,7 +1003,7 @@ vector<vector<long long>> Graf::royFloyd(vector<vector<long long>> &distante) {
 
 }
 
-void Graf::afisareMatrice(vector<vector<long long>> matrice, ofstream &out) {
+void Graf::afisareMatrice(vector<vector<long long>> matrice, std::ostream &out) {
     for(int i = 1; i <= noduri; i++){
         for(int j = 1; j <= noduri; j++){
             if(i != j || matrice[i][j] != infinit)
@@ -1080,7 +1196,7 @@ void rezolvareDFS(){
 
     in >> noduri >> muchii;
 
-    Graf mygraf(noduri, muchii);
+    Graf mygraf(noduri, muchii, false, false);
 
     for(int i = 0; i < muchii; i++)
     {
@@ -1111,7 +1227,7 @@ void rezolvareBFS(){
 
     in >> noduri >> muchii >> nodStart;
 
-    Graf mygraf(noduri, muchii);
+    Graf mygraf(noduri, muchii, true, false);
 
     for(int i = 0; i < muchii; i++)
     {
@@ -1142,7 +1258,7 @@ void rezolvareBiconex(){
 
     in >> noduri >> muchii;
 
-    Graf mygraf(noduri, muchii);
+    Graf mygraf(noduri, muchii, false, false);
 
     for(int i = 0; i < muchii; i++)
     {
@@ -1182,7 +1298,7 @@ void rezolvareCTC(){
 
     in >> noduri >> muchii;
 
-    Graf mygraf(noduri, muchii);
+    Graf mygraf(noduri, muchii, true, false);
 
     for(int i = 0; i < muchii; i++)
     {
@@ -1252,7 +1368,7 @@ void rezolvareMuchieCritica(){
     vector<vector<int>> listaMuchii; //pentru muchii critice
     vector<vector<int>> muchiiCritice;
 
-    Graf mygraf(noduri, muchii);
+    Graf mygraf(noduri, muchii, false, false);
 
     for(int i = 0; i < muchii; i++)
     {
@@ -1288,7 +1404,7 @@ void rezolvareSortareTopologica(){
     in >> noduri >> muchii;
     vector<int> gradeInterioare(noduri + 1, 0);
 
-    Graf mygraf(noduri, muchii);
+    Graf mygraf(noduri, muchii, true, false);
 
     for(int i = 0; i < muchii; i++)
     {
@@ -1320,7 +1436,7 @@ void rezolvareAPM(){
 
     in >> noduri >> muchii;
 
-    Graf mygraf(noduri, muchii);
+    Graf mygraf(noduri, muchii, false, false);
 
     for(int i = 0; i < muchii; i++)
     {
@@ -1366,7 +1482,7 @@ void rezolvareDijkstra(){
     // int nodStart;
     // in >> nodStart;
 
-    Graf mygraf(noduri, muchii);
+    Graf mygraf(noduri, muchii, true, true);
 
     for(int i = 0; i < muchii; i++)
     {
@@ -1435,7 +1551,7 @@ void rezolvareBellmanFord(){
     // int nodStart;
     // in >> nodStart;
 
-    Graf mygraf(noduri, muchii);
+    Graf mygraf(noduri, muchii, true, true);
 
     for(int i = 0; i < muchii; i++)
     {
@@ -1486,7 +1602,7 @@ void rezolvareFloydWarshall(){
         }
     }
 
-    Graf mygraf(noduri);
+    Graf mygraf(noduri, true);
 
     matriceDistanteMinime = mygraf.royFloyd(matriceDistanteMinime);
 
@@ -1506,7 +1622,7 @@ void rezolvareDarb(){
 
     in >> noduri;
 
-    Graf mygraf(noduri);
+    Graf mygraf(noduri, false);
 
     //e arbore
 
@@ -1521,6 +1637,8 @@ void rezolvareDarb(){
     in.close();
     out.close();
 }
+
+// la Maxflow imi dau 50 de puncte pe infoarena
 
 /*
 void rezolvareEdmondsKarp(){
@@ -1556,7 +1674,7 @@ void rezolvareEdmondsKarp(){
 int main() {
 
     /* apel DFS */
-//    rezolvareDFS();
+    rezolvareDFS();
 
     /* apel BFS */
 //    rezolvareBFS();
